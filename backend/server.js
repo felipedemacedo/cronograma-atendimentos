@@ -213,6 +213,19 @@ app.put('/api/schedules/:id', (req, res) => {
   );
 });
 
+// Excluir múltiplos agendamentos de uma vez (Batch)
+app.delete('/api/schedules/batch', (req, res) => {
+  const { ids } = req.body; // ids no body do DELETE ou via query (mas DELETE body é melhor tratar se suportado, senao usar POST)
+  if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: 'Lista de IDs inválida' });
+  }
+  const placeholders = ids.map(() => '?').join(',');
+  db.run(`DELETE FROM agendamentos WHERE id IN (${placeholders})`, ids, function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.status(204).send();
+  });
+});
+
 // Excluir um agendamento específico
 app.delete('/api/schedules/:id', (req, res) => {
   const { id } = req.params;

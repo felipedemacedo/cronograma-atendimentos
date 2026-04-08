@@ -17,6 +17,9 @@ function App() {
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isEditScheduleModalOpen, setIsEditScheduleModalOpen] = useState(false);
 
+  // Seleção múltipla para lote
+  const [selectedSchedules, setSelectedSchedules] = useState([]);
+
   // Form states
   const [currentResidence, setCurrentResidence] = useState(null);
   const [residenceFormData, setResidenceFormData] = useState({ nome: '', endereco: '' });
@@ -171,6 +174,31 @@ function App() {
     if (window.confirm('Excluir este agendamento?')) {
       await api.delete(`/schedules/${id}`);
       fetchData();
+      setSelectedSchedules(prev => prev.filter(s => s !== id));
+    }
+  };
+
+  const handleBatchDelete = async () => {
+    if (window.confirm(`Tem certeza que deseja excluir ${selectedSchedules.length} agendamentos?`)) {
+      try {
+        await api.delete('/schedules/batch', { data: { ids: selectedSchedules } });
+        setSelectedSchedules([]);
+        fetchData();
+      } catch (err) {
+        console.error('Erro ao excluir lote:', err);
+      }
+    }
+  };
+
+  const toggleScheduleSelection = (id) => {
+    setSelectedSchedules(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
+  };
+
+  const toggleAllSchedules = () => {
+    if (selectedSchedules.length === schedules.length) {
+      setSelectedSchedules([]); // Deselecionar tudo
+    } else {
+      setSelectedSchedules(schedules.map(s => s.id)); // Selecionar todos os carregados
     }
   };
 
@@ -221,9 +249,27 @@ function App() {
         <>
           <div className="flex-between" style={{ marginBottom: '24px' }}>
             <h2 style={{ color: 'white' }}>Agenda de Atendimentos</h2>
-            <button className="btn-primary" onClick={() => setIsScheduleModalOpen(true)}>
-              <Plus size={20} /> Gerar Lote
-            </button>
+            <div className="flex-gap">
+              {selectedSchedules.length > 0 ? (
+                <>
+                  <button className="btn-secondary" onClick={() => setSelectedSchedules([])}>
+                    Cancelar Seleção
+                  </button>
+                  <button className="btn-primary" style={{ background: 'var(--danger)' }} onClick={handleBatchDelete}>
+                    <Trash2 size={20} /> Excluir ({selectedSchedules.length})
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button className="btn-secondary" onClick={toggleAllSchedules}>
+                    Selecionar Todos
+                  </button>
+                  <button className="btn-primary" onClick={() => setIsScheduleModalOpen(true)}>
+                    <Plus size={20} /> Gerar Lote
+                  </button>
+                </>
+              )}
+            </div>
           </div>
           <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))' }}>
             {schedules.length === 0 ? (
@@ -233,9 +279,17 @@ function App() {
               </div>
             ) : (
               schedules.map(s => (
-                <div key={s.id} className="card" style={{ padding: '20px' }}>
+                <div key={s.id} onClick={() => toggleScheduleSelection(s.id)} className="card" style={{ padding: '20px', cursor: 'pointer', border: selectedSchedules.includes(s.id) ? '2px solid var(--primary)' : '1px solid var(--border)', transition: 'all 0.2s', background: selectedSchedules.includes(s.id) ? 'rgba(99, 102, 241, 0.05)' : 'var(--bg-card)' }}>
                   <div className="flex-between" style={{ marginBottom: '12px' }}>
-                    <h3 style={{ fontSize: '1.2rem', color: 'white' }}>{s.cuidadora_nome}</h3>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedSchedules.includes(s.id)}
+                        onChange={(e) => { e.stopPropagation(); toggleScheduleSelection(s.id); }}
+                        style={{ width: '18px', height: '18px', accentColor: 'var(--primary)', cursor: 'pointer' }}
+                      />
+                      <h3 style={{ fontSize: '1.2rem', color: 'white', margin: 0 }}>{s.cuidadora_nome}</h3>
+                    </div>
                     <span style={{ fontSize: '0.8rem', background: 'rgba(99,102,241,0.2)', color: 'var(--primary)', padding: '4px 8px', borderRadius: '4px' }}>
                       <Home size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }}/>
                       {s.residencia_nome}
@@ -256,10 +310,10 @@ function App() {
                   </div>
 
                   <div className="flex-gap" style={{ justifyContent: 'flex-end', marginTop: 'auto' }}>
-                    <button className="btn-icon" onClick={() => { setEditScheduleData(s); setIsEditScheduleModalOpen(true); }}>
+                    <button className="btn-icon" onClick={(e) => { e.stopPropagation(); setEditScheduleData(s); setIsEditScheduleModalOpen(true); }}>
                       <Edit2 size={18} />
                     </button>
-                    <button className="btn-icon" style={{ borderColor: 'rgba(239, 68, 68, 0.3)', color: 'var(--danger)' }} onClick={() => handleDeleteSchedule(s.id)}>
+                    <button className="btn-icon" style={{ borderColor: 'rgba(239, 68, 68, 0.3)', color: 'var(--danger)' }} onClick={(e) => { e.stopPropagation(); handleDeleteSchedule(s.id); }}>
                       <Trash2 size={18} />
                     </button>
                   </div>

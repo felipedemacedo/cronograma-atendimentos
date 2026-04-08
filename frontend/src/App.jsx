@@ -26,7 +26,7 @@ function App() {
   const [residenceFormData, setResidenceFormData] = useState({ nome: '', endereco: '', valor_hora: 10, adicional_noturno: false, percentual_noturno: 20 });
 
   const [currentCaregiver, setCurrentCaregiver] = useState(null);
-  const [caregiverFormData, setCaregiverFormData] = useState({ nome: '', residencia_ids: [], residencias_config: [], valor_hora: '', observacao: '', dias_disponiveis: [0,1,2,3,4,5,6] });
+  const [caregiverFormData, setCaregiverFormData] = useState({ nome: '', residencia_ids: [], residencias_config: [], valor_hora: '', observacao: '', dias_disponiveis: [0,1,2,3,4,5,6], adicional_noturno: '', percentual_noturno: '' });
 
   const WEEKDAYS = [
     { id: 0, label: 'Domingo' }, { id: 1, label: 'Segunda' },
@@ -112,8 +112,10 @@ function App() {
       residencias_config: c.residencias_config || [],
       valor_hora: c.valor_hora || '',
       observacao: c.observacao || '',
-      dias_disponiveis: c.dias_disponiveis || [0,1,2,3,4,5,6]
-    } : { nome: '', residencia_ids: [], residencias_config: [], valor_hora: '', observacao: '', dias_disponiveis: [0,1,2,3,4,5,6] });
+      dias_disponiveis: c.dias_disponiveis || [0,1,2,3,4,5,6],
+      adicional_noturno: c.adicional_noturno !== null && c.adicional_noturno !== undefined ? String(c.adicional_noturno) : '',
+      percentual_noturno: c.percentual_noturno || ''
+    } : { nome: '', residencia_ids: [], residencias_config: [], valor_hora: '', observacao: '', dias_disponiveis: [0,1,2,3,4,5,6], adicional_noturno: '', percentual_noturno: '' });
     setIsCaregiverModalOpen(true);
   };
   const handleCaregiverSubmit = async (e) => {
@@ -422,6 +424,11 @@ function App() {
                 )}
                 <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '8px', marginBottom: '24px', fontSize: '0.85rem' }}>
                   <p><strong>Custo Específico:</strong> {c.valor_hora ? `R$ ${parseFloat(c.valor_hora).toFixed(2)} / hora` : 'Vinculado ao da Residência'}</p>
+                  {c.adicional_noturno !== null && c.adicional_noturno !== undefined && (
+                    <p style={{ marginTop: '4px' }}>
+                      <strong>Adicional Noturno Específico:</strong> {c.adicional_noturno === 1 ? `Sim (+${c.percentual_noturno || 20}%)` : 'Não Aplicar'}
+                    </p>
+                  )}
                 </div>
                 <div className="flex-gap" style={{ justifyContent: 'flex-end' }}>
                   <button className="btn-icon" onClick={() => handleOpenCaregiverModal(c)}><Edit2 size={18} /></button>
@@ -475,6 +482,22 @@ function App() {
                 <label>Valor Hora Específico (R$)</label>
                 <input type="number" step="0.01" className="form-control" placeholder="Deixe em branco para usar o da Residência" value={caregiverFormData.valor_hora} onChange={e => setCaregiverFormData({ ...caregiverFormData, valor_hora: e.target.value })} />
               </div>
+
+              <div className="form-group">
+                <label>Adicional Noturno (Específico)</label>
+                <select className="form-control" value={caregiverFormData.adicional_noturno} onChange={e => setCaregiverFormData({ ...caregiverFormData, adicional_noturno: e.target.value })}>
+                  <option value="">Usar Regras da Residência atendida</option>
+                  <option value="1">Forçar Aplicação do Adicional</option>
+                  <option value="0">Nunca Aplicar Adicional</option>
+                </select>
+              </div>
+
+              {caregiverFormData.adicional_noturno === '1' && (
+                <div className="form-group">
+                  <label>Acréscimo do Adicional Noturno Específico (%) *Mín 20%</label>
+                  <input type="number" step="0.1" min="20" required className="form-control" value={caregiverFormData.percentual_noturno} onChange={e => setCaregiverFormData({ ...caregiverFormData, percentual_noturno: e.target.value })} />
+                </div>
+              )}
               
               <div className="form-group">
                 <label>Dias Disponíveis na Semana</label>

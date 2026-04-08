@@ -27,8 +27,13 @@ export default function FinanceView({ schedules, caregivers, residences, current
       }
 
       const baseRate = s.cuidadora_valor_hora || s.residencia_valor_hora || 10;
-      const isNightBonus = s.residencia_adicional_noturno === 1;
-      const bonusPct = s.residencia_percentual_noturno || 20;
+      let isNightBonus = s.residencia_adicional_noturno === 1;
+      let bonusPct = s.residencia_percentual_noturno || 20;
+
+      if (s.cuidadora_adicional_noturno !== null && s.cuidadora_adicional_noturno !== undefined) {
+        isNightBonus = s.cuidadora_adicional_noturno === 1;
+        if (isNightBonus) bonusPct = s.cuidadora_percentual_noturno || 20;
+      }
 
       const start = new Date(`${s.data_inicio}T${s.hora_inicio}:00`);
       const end = new Date(`${s.data_fim}T${s.hora_fim}:00`);

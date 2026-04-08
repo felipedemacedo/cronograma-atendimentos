@@ -380,7 +380,7 @@ function App() {
            <div className="modal-content" onClick={e=>e.stopPropagation()}>
              <h2 style={{color:'white', marginBottom:'24px'}}>{currentResidence?'Editar Residência':'Nova Residência'}</h2>
              <form onSubmit={handleResidenceSubmit}>
-               <div className="form-group"><label>Nome*</label><input required className="form-control" value={residenceFormData.nome} onChange={e=>setResidenceFormData({...residenceFormData, nome:e.target.value})}/></div>
+               <div className="form-group"><label>Nome*</label><input autoFocus required className="form-control" value={residenceFormData.nome} onChange={e=>setResidenceFormData({...residenceFormData, nome:e.target.value})}/></div>
                <div className="form-group"><label>Endereço</label><input className="form-control" value={residenceFormData.endereco} onChange={e=>setResidenceFormData({...residenceFormData, endereco:e.target.value})}/></div>
                <div className="flex-gap" style={{justifyContent:'flex-end', marginTop:'32px'}}><button type="button" className="btn-secondary" onClick={() => setIsResidenceModalOpen(false)}>Cancelar</button><button type="submit" className="btn-primary">Salvar</button></div>
              </form>
@@ -394,7 +394,7 @@ function App() {
            <div className="modal-content" onClick={e=>e.stopPropagation()}>
              <h2 style={{color:'white', marginBottom:'24px'}}>{currentCaregiver?'Editar Prestador':'Novo Prestador de Serviço'}</h2>
              <form onSubmit={handleCaregiverSubmit}>
-               <div className="form-group"><label>Nome*</label><input required className="form-control" value={caregiverFormData.nome} onChange={e=>setCaregiverFormData({...caregiverFormData, nome:e.target.value})}/></div>
+               <div className="form-group"><label>Nome*</label><input autoFocus required className="form-control" value={caregiverFormData.nome} onChange={e=>setCaregiverFormData({...caregiverFormData, nome:e.target.value})}/></div>
                <div className="form-group"><label>Atende nas Residências:</label>
                   <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
                     {residences.map(res => (

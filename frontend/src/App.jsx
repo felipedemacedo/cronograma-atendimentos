@@ -287,7 +287,7 @@ function App() {
           setSelectedMonth={setViewMonth}
           selectedResidencia={viewResidencia}
           setSelectedResidencia={setViewResidencia}
-          onEditSchedule={handleOpenEditScheduleModal}
+          onEditSchedule={(s) => { setEditScheduleData(s); setIsEditScheduleModalOpen(true); }}
         />
       ) : activeTab === 'schedules' ? (
         <>

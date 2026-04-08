@@ -26,7 +26,7 @@ function App() {
   const [residenceFormData, setResidenceFormData] = useState({ nome: '', endereco: '', valor_hora: 10, adicional_noturno: false, percentual_noturno: 20 });
 
   const [currentCaregiver, setCurrentCaregiver] = useState(null);
-  const [caregiverFormData, setCaregiverFormData] = useState({ nome: '', residencia_ids: [], residencias_config: [], valor_hora: '', observacao: '', dias_indisponiveis: [] });
+  const [caregiverFormData, setCaregiverFormData] = useState({ nome: '', residencia_ids: [], residencias_config: [], valor_hora: '', observacao: '', dias_disponiveis: [0,1,2,3,4,5,6] });
 
   const WEEKDAYS = [
     { id: 0, label: 'Domingo' }, { id: 1, label: 'Segunda' },
@@ -112,8 +112,8 @@ function App() {
       residencias_config: c.residencias_config || [],
       valor_hora: c.valor_hora || '',
       observacao: c.observacao || '',
-      dias_indisponiveis: c.dias_indisponiveis || []
-    } : { nome: '', residencia_ids: [], residencias_config: [], valor_hora: '', observacao: '', dias_indisponiveis: [] });
+      dias_disponiveis: c.dias_disponiveis || [0,1,2,3,4,5,6]
+    } : { nome: '', residencia_ids: [], residencias_config: [], valor_hora: '', observacao: '', dias_disponiveis: [0,1,2,3,4,5,6] });
     setIsCaregiverModalOpen(true);
   };
   const handleCaregiverSubmit = async (e) => {
@@ -159,13 +159,13 @@ function App() {
     }
 
     const caregiver = caregivers.find(c => c.id === cuidadora_id);
-    const blockedDays = caregiver?.dias_indisponiveis || [];
+    const availableDays = caregiver?.dias_disponiveis || [0,1,2,3,4,5,6];
     
-    // Filtra dias bloqueados (indisponíveis)
-    if (blockedDays.length > 0) {
+    // Filtra para manter somente dias disponíveis
+    if (availableDays.length < 7) {
       targetDays = targetDays.filter(day => {
         const date = new Date(y, m - 1, day);
-        return !blockedDays.includes(date.getDay());
+        return availableDays.includes(date.getDay());
       });
     }
 
@@ -408,10 +408,10 @@ function App() {
                     ))}
                   </div>
                 </div>
-                {c.dias_indisponiveis && c.dias_indisponiveis.length > 0 && (
+                {c.dias_disponiveis && c.dias_disponiveis.length < 7 && (
                   <div style={{ marginBottom: '16px' }}>
-                    <p style={{ fontSize: '0.9rem', marginBottom: '8px', color: 'var(--danger)' }}>Não atende:</p>
-                    <p style={{ fontSize: '0.85rem' }}>{c.dias_indisponiveis.map(d => WEEKDAYS.find(w=>w.id===d)?.label).join(', ')}</p>
+                    <p style={{ fontSize: '0.9rem', marginBottom: '8px', color: 'var(--success)' }}>Dias Disponíveis:</p>
+                    <p style={{ fontSize: '0.85rem' }}>{c.dias_disponiveis.map(d => WEEKDAYS.find(w=>w.id===d)?.label).join(', ')}</p>
                   </div>
                 )}
                 {c.observacao && (
@@ -477,17 +477,19 @@ function App() {
               </div>
               
               <div className="form-group">
-                <label>Dias Indisponíveis na Semana</label>
+                <label>Dias Disponíveis na Semana</label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px' }}>
-                  {WEEKDAYS.map(w => (
-                    <label key={w.id} style={{ color: 'white', display: 'flex', alignItems: 'center', fontSize: '0.85rem', background: caregiverFormData.dias_indisponiveis?.includes(w.id) ? 'rgba(239, 68, 68, 0.2)' : 'transparent', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border)' }}>
-                      <input type="checkbox" style={{ marginRight: '6px', accentColor: 'var(--danger)' }} checked={caregiverFormData.dias_indisponiveis?.includes(w.id)} onChange={() => {
-                        const dias = caregiverFormData.dias_indisponiveis || [];
-                        setCaregiverFormData({ ...caregiverFormData, dias_indisponiveis: dias.includes(w.id) ? dias.filter(d => d !== w.id) : [...dias, w.id] });
+                  {WEEKDAYS.map(w => {
+                    const isAvail = caregiverFormData.dias_disponiveis?.includes(w.id);
+                    return (
+                    <label key={w.id} style={{ color: 'white', display: 'flex', alignItems: 'center', fontSize: '0.85rem', background: isAvail ? 'rgba(16, 185, 129, 0.2)' : 'transparent', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border)' }}>
+                      <input type="checkbox" style={{ marginRight: '6px', accentColor: 'var(--success)' }} checked={isAvail} onChange={() => {
+                        const dias = caregiverFormData.dias_disponiveis || [];
+                        setCaregiverFormData({ ...caregiverFormData, dias_disponiveis: dias.includes(w.id) ? dias.filter(d => d !== w.id) : [...dias, w.id] });
                       }} />
                       {w.label}
                     </label>
-                  ))}
+                  )})}
                 </div>
               </div>
 

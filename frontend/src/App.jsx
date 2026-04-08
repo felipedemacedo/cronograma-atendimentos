@@ -38,6 +38,11 @@ function App() {
     id: '', data_inicio: '', hora_inicio: '', data_fim: '', hora_fim: ''
   });
 
+  const currentEnvDate = new Date();
+  const defaultMonth = `${currentEnvDate.getFullYear()}-${String(currentEnvDate.getMonth() + 1).padStart(2, '0')}`;
+  const [viewMonth, setViewMonth] = useState(defaultMonth);
+  const [viewResidencia, setViewResidencia] = useState('');
+
   // Fetch logic
   const fetchData = async () => {
     try {
@@ -204,7 +209,14 @@ function App() {
       </div>
 
       {activeTab === 'calendar' ? (
-        <CalendarView schedules={schedules} residences={residences} />
+        <CalendarView 
+          schedules={schedules} 
+          residences={residences} 
+          selectedMonth={viewMonth}
+          setSelectedMonth={setViewMonth}
+          selectedResidencia={viewResidencia}
+          setSelectedResidencia={setViewResidencia}
+        />
       ) : activeTab === 'schedules' ? (
         <>
           <div className="flex-between" style={{ marginBottom: '24px' }}>

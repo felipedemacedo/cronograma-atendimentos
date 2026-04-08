@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 
 const COLORS = [
   '#f87171', '#fb923c', '#facc15', '#4ade80', '#2dd4bf', 
@@ -26,13 +26,7 @@ const getDayOfWeek = (year, month, day) => {
   return days[new Date(year, month - 1, day).getDay()];
 };
 
-export default function CalendarView({ schedules, residences }) {
-  const currentEnvDate = new Date();
-  const defaultMonth = `${currentEnvDate.getFullYear()}-${String(currentEnvDate.getMonth() + 1).padStart(2, '0')}`;
-  
-  const [selectedMonth, setSelectedMonth] = useState(defaultMonth);
-  const [selectedResidencia, setSelectedResidencia] = useState('');
-
+export default function CalendarView({ schedules, residences, selectedMonth, setSelectedMonth, selectedResidencia, setSelectedResidencia }) {
   const visualData = useMemo(() => {
     if (!selectedMonth || !selectedResidencia) return null;
     

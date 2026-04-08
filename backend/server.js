@@ -82,8 +82,11 @@ app.get('/api/caregivers', (req, res) => {
       
       const cuidadorasComResidencias = cuidadoras.map(c => {
         const suasResidencias = rels.filter(r => r.cuidadora_id === c.id);
+        let parsedDias = [];
+        try { parsedDias = c.dias_indisponiveis ? JSON.parse(c.dias_indisponiveis) : []; } catch (e) {}
         return { 
           ...c, 
+          dias_indisponiveis: parsedDias,
           residencia_ids: suasResidencias.map(r => r.residencia_id),
           residencias_config: suasResidencias.map(r => ({ id: r.residencia_id, valor_transporte: r.valor_transporte }))
         };
@@ -95,16 +98,17 @@ app.get('/api/caregivers', (req, res) => {
 
 // Criar cuidadora
 app.post('/api/caregivers', (req, res) => {
-  const { nome, residencia_ids, residencias_config, valor_hora } = req.body;
+  const { nome, residencia_ids, residencias_config, valor_hora, observacao, dias_indisponiveis } = req.body;
   if (!nome) return res.status(400).json({ error: 'Nome é obrigatório' });
   
   const id = uuidv4();
   const vHora = valor_hora !== undefined && valor_hora !== '' ? valor_hora : null;
+  const diasStr = dias_indisponiveis ? JSON.stringify(dias_indisponiveis) : '[]';
 
   db.serialize(() => {
     db.run('BEGIN TRANSACTION');
     try {
-      db.run('INSERT INTO cuidadoras (id, nome, valor_hora) VALUES (?, ?, ?)', [id, nome, vHora]);
+      db.run('INSERT INTO cuidadoras (id, nome, valor_hora, observacao, dias_indisponiveis) VALUES (?, ?, ?, ?, ?)', [id, nome, vHora, observacao || '', diasStr]);
       
       const configs = residencias_config || (residencia_ids || []).map(rId => ({ id: rId, valor_transporte: 9 }));
       if (configs.length > 0) {
@@ -113,7 +117,7 @@ app.post('/api/caregivers', (req, res) => {
         stmt.finalize();
       }
       db.run('COMMIT');
-      res.status(201).json({ id, nome, valor_hora: vHora, residencia_ids: configs.map(c => c.id), residencias_config: configs });
+      res.status(201).json({ id, nome, valor_hora: vHora, observacao, dias_indisponiveis, residencia_ids: configs.map(c => c.id), residencias_config: configs });
     } catch (error) {
       db.run('ROLLBACK');
       res.status(500).json({ error: error.message });
@@ -124,13 +128,14 @@ app.post('/api/caregivers', (req, res) => {
 // Atualizar cuidadora
 app.put('/api/caregivers/:id', (req, res) => {
   const { id } = req.params;
-  const { nome, residencia_ids, residencias_config, valor_hora } = req.body;
+  const { nome, residencia_ids, residencias_config, valor_hora, observacao, dias_indisponiveis } = req.body;
   const vHora = valor_hora !== undefined && valor_hora !== '' ? valor_hora : null;
+  const diasStr = dias_indisponiveis ? JSON.stringify(dias_indisponiveis) : '[]';
 
   db.serialize(() => {
     db.run('BEGIN TRANSACTION');
     try {
-      db.run('UPDATE cuidadoras SET nome = ?, valor_hora = ? WHERE id = ?', [nome, vHora, id]);
+      db.run('UPDATE cuidadoras SET nome = ?, valor_hora = ?, observacao = ?, dias_indisponiveis = ? WHERE id = ?', [nome, vHora, observacao || '', diasStr, id]);
       db.run('DELETE FROM cuidadora_residencia WHERE cuidadora_id = ?', id);
       
       const configs = residencias_config || (residencia_ids || []).map(rId => ({ id: rId, valor_transporte: 9 }));
@@ -141,7 +146,7 @@ app.put('/api/caregivers/:id', (req, res) => {
       }
       
       db.run('COMMIT');
-      res.json({ id, nome, valor_hora: vHora, residencia_ids: configs.map(c => c.id), residencias_config: configs });
+      res.json({ id, nome, valor_hora: vHora, observacao, dias_indisponiveis, residencia_ids: configs.map(c => c.id), residencias_config: configs });
     } catch (error) {
       db.run('ROLLBACK');
       res.status(500).json({ error: error.message });

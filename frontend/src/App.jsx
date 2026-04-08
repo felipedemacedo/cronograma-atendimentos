@@ -26,7 +26,13 @@ function App() {
   const [residenceFormData, setResidenceFormData] = useState({ nome: '', endereco: '', valor_hora: 10, adicional_noturno: false, percentual_noturno: 20 });
 
   const [currentCaregiver, setCurrentCaregiver] = useState(null);
-  const [caregiverFormData, setCaregiverFormData] = useState({ nome: '', residencia_ids: [], residencias_config: [], valor_hora: '' });
+  const [caregiverFormData, setCaregiverFormData] = useState({ nome: '', residencia_ids: [], residencias_config: [], valor_hora: '', observacao: '', dias_indisponiveis: [] });
+
+  const WEEKDAYS = [
+    { id: 0, label: 'Domingo' }, { id: 1, label: 'Segunda' },
+    { id: 2, label: 'Terça' }, { id: 3, label: 'Quarta' },
+    { id: 4, label: 'Quinta' }, { id: 5, label: 'Sexta' }, { id: 6, label: 'Sábado' }
+  ];
 
   const [scheduleFormData, setScheduleFormData] = useState({
     residencia_id: '',
@@ -104,8 +110,10 @@ function App() {
       nome: c.nome, 
       residencia_ids: c.residencia_ids || [],
       residencias_config: c.residencias_config || [],
-      valor_hora: c.valor_hora || ''
-    } : { nome: '', residencia_ids: [], residencias_config: [], valor_hora: '' });
+      valor_hora: c.valor_hora || '',
+      observacao: c.observacao || '',
+      dias_indisponiveis: c.dias_indisponiveis || []
+    } : { nome: '', residencia_ids: [], residencias_config: [], valor_hora: '', observacao: '', dias_indisponiveis: [] });
     setIsCaregiverModalOpen(true);
   };
   const handleCaregiverSubmit = async (e) => {
@@ -150,7 +158,18 @@ function App() {
       targetDays = specificDays.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n >= 1 && n <= daysInMonth);
     }
 
-    if (targetDays.length === 0) return alert("Nenhum dia válido recebido");
+    const caregiver = caregivers.find(c => c.id === cuidadora_id);
+    const blockedDays = caregiver?.dias_indisponiveis || [];
+    
+    // Filtra dias bloqueados (indisponíveis)
+    if (blockedDays.length > 0) {
+      targetDays = targetDays.filter(day => {
+        const date = new Date(y, m - 1, day);
+        return !blockedDays.includes(date.getDay());
+      });
+    }
+
+    if (targetDays.length === 0) return alert("Nenhum dia válido gerado! Verifique os dias inseridos ou a indisponibilidade do prestador nesta data.");
 
     const spansNextDay = hora_fim < hora_inicio; // ex: 19:00 as 07:00
 
@@ -389,6 +408,18 @@ function App() {
                     ))}
                   </div>
                 </div>
+                {c.dias_indisponiveis && c.dias_indisponiveis.length > 0 && (
+                  <div style={{ marginBottom: '16px' }}>
+                    <p style={{ fontSize: '0.9rem', marginBottom: '8px', color: 'var(--danger)' }}>Não atende:</p>
+                    <p style={{ fontSize: '0.85rem' }}>{c.dias_indisponiveis.map(d => WEEKDAYS.find(w=>w.id===d)?.label).join(', ')}</p>
+                  </div>
+                )}
+                {c.observacao && (
+                  <div style={{ marginBottom: '16px' }}>
+                    <p style={{ fontSize: '0.9rem', marginBottom: '4px', color: 'var(--text-muted)' }}>Observação:</p>
+                    <p style={{ fontSize: '0.85rem', fontStyle: 'italic', background: 'rgba(255,255,255,0.02)', padding: '8px', borderRadius: '4px' }}>"{c.observacao}"</p>
+                  </div>
+                )}
                 <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '8px', marginBottom: '24px', fontSize: '0.85rem' }}>
                   <p><strong>Custo Específico:</strong> {c.valor_hora ? `R$ ${parseFloat(c.valor_hora).toFixed(2)} / hora` : 'Vinculado ao da Residência'}</p>
                 </div>
@@ -444,6 +475,27 @@ function App() {
                 <label>Valor Hora Específico (R$)</label>
                 <input type="number" step="0.01" className="form-control" placeholder="Deixe em branco para usar o da Residência" value={caregiverFormData.valor_hora} onChange={e => setCaregiverFormData({ ...caregiverFormData, valor_hora: e.target.value })} />
               </div>
+              
+              <div className="form-group">
+                <label>Dias Indisponíveis na Semana</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px' }}>
+                  {WEEKDAYS.map(w => (
+                    <label key={w.id} style={{ color: 'white', display: 'flex', alignItems: 'center', fontSize: '0.85rem', background: caregiverFormData.dias_indisponiveis?.includes(w.id) ? 'rgba(239, 68, 68, 0.2)' : 'transparent', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border)' }}>
+                      <input type="checkbox" style={{ marginRight: '6px', accentColor: 'var(--danger)' }} checked={caregiverFormData.dias_indisponiveis?.includes(w.id)} onChange={() => {
+                        const dias = caregiverFormData.dias_indisponiveis || [];
+                        setCaregiverFormData({ ...caregiverFormData, dias_indisponiveis: dias.includes(w.id) ? dias.filter(d => d !== w.id) : [...dias, w.id] });
+                      }} />
+                      {w.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Observação (Opcional)</label>
+                <textarea className="form-control" placeholder="Ex: Informações gerais, contatos ou restrições..." value={caregiverFormData.observacao} onChange={e => setCaregiverFormData({ ...caregiverFormData, observacao: e.target.value })} style={{ minHeight: '80px', resize: 'vertical' }} />
+              </div>
+
               <div className="form-group"><label>Atende nas Residências:</label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {residences.map(res => {

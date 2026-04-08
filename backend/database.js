@@ -23,7 +23,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
         CREATE TABLE IF NOT EXISTS cuidadoras (
           id TEXT PRIMARY KEY,
           nome TEXT NOT NULL,
-          valor_hora REAL
+          valor_hora REAL,
+          observacao TEXT,
+          dias_indisponiveis TEXT
         )
       `);
 

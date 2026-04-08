@@ -12,14 +12,18 @@ const db = new sqlite3.Database(dbPath, (err) => {
         CREATE TABLE IF NOT EXISTS residencias (
           id TEXT PRIMARY KEY,
           nome TEXT NOT NULL,
-          endereco TEXT
+          endereco TEXT,
+          valor_hora REAL DEFAULT 10,
+          adicional_noturno INTEGER DEFAULT 0,
+          percentual_noturno REAL DEFAULT 20
         )
       `);
       
       db.run(`
         CREATE TABLE IF NOT EXISTS cuidadoras (
           id TEXT PRIMARY KEY,
-          nome TEXT NOT NULL
+          nome TEXT NOT NULL,
+          valor_hora REAL
         )
       `);
 

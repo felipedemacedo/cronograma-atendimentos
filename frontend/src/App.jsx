@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Plus, Home, MapPin, Edit2, Trash2, Users, UserCheck, CalendarDays, Clock, MonitorPlay } from 'lucide-react';
+import { Plus, Home, MapPin, Edit2, Trash2, Users, UserCheck, CalendarDays, Clock, MonitorPlay, DollarSign } from 'lucide-react';
 import api from './api';
 import CalendarView from './CalendarView';
+import FinanceView from './FinanceView';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('calendar'); // 'residences', 'caregivers', 'schedules', 'calendar'
+  const [activeTab, setActiveTab] = useState('calendar'); // 'residences', 'caregivers', 'schedules', 'calendar', 'finance'
   
   // Data states
   const [residences, setResidences] = useState([]);
@@ -22,10 +23,10 @@ function App() {
 
   // Form states
   const [currentResidence, setCurrentResidence] = useState(null);
-  const [residenceFormData, setResidenceFormData] = useState({ nome: '', endereco: '' });
+  const [residenceFormData, setResidenceFormData] = useState({ nome: '', endereco: '', valor_hora: 10, adicional_noturno: false, percentual_noturno: 20 });
 
   const [currentCaregiver, setCurrentCaregiver] = useState(null);
-  const [caregiverFormData, setCaregiverFormData] = useState({ nome: '', residencia_ids: [] });
+  const [caregiverFormData, setCaregiverFormData] = useState({ nome: '', residencia_ids: [], valor_hora: '' });
 
   const [scheduleFormData, setScheduleFormData] = useState({
     residencia_id: '',
@@ -71,7 +72,13 @@ function App() {
   // --- Residence Handlers ---
   const handleOpenResidenceModal = (r = null) => {
     setCurrentResidence(r);
-    setResidenceFormData(r ? { nome: r.nome, endereco: r.endereco || '' } : { nome: '', endereco: '' });
+    setResidenceFormData(r ? { 
+      nome: r.nome, 
+      endereco: r.endereco || '', 
+      valor_hora: r.valor_hora || 10,
+      adicional_noturno: r.adicional_noturno === 1,
+      percentual_noturno: r.percentual_noturno || 20
+    } : { nome: '', endereco: '', valor_hora: 10, adicional_noturno: false, percentual_noturno: 20 });
     setIsResidenceModalOpen(true);
   };
   const handleResidenceSubmit = async (e) => {
@@ -93,7 +100,11 @@ function App() {
   // --- Caregiver Handlers ---
   const handleOpenCaregiverModal = (c = null) => {
     setCurrentCaregiver(c);
-    setCaregiverFormData(c ? { nome: c.nome, residencia_ids: c.residencia_ids || [] } : { nome: '', residencia_ids: [] });
+    setCaregiverFormData(c ? { 
+      nome: c.nome, 
+      residencia_ids: c.residencia_ids || [],
+      valor_hora: c.valor_hora || ''
+    } : { nome: '', residencia_ids: [], valor_hora: '' });
     setIsCaregiverModalOpen(true);
   };
   const handleCaregiverSubmit = async (e) => {
@@ -234,9 +245,19 @@ function App() {
         <button onClick={() => setActiveTab('calendar')} className="btn-secondary" style={{ background: activeTab === 'calendar' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'calendar' ? 'var(--primary)' : 'var(--border)' }}>
           <MonitorPlay size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }}/> Visualização Geral
         </button>
+        <button onClick={() => setActiveTab('finance')} className="btn-secondary" style={{ background: activeTab === 'finance' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'finance' ? 'var(--primary)' : 'var(--border)' }}>
+          <DollarSign size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }}/> Financeiro
+        </button>
       </div>
 
-      {activeTab === 'calendar' ? (
+      {activeTab === 'finance' ? (
+        <FinanceView 
+          schedules={schedules} 
+          caregivers={caregivers} 
+          residences={residences} 
+          currentEnvDate={currentEnvDate} 
+        />
+      ) : activeTab === 'calendar' ? (
         <CalendarView 
           schedules={schedules} 
           residences={residences} 
@@ -334,7 +355,11 @@ function App() {
             {residences.map((res) => (
               <div key={res.id} className="card">
                 <h3 style={{ fontSize: '1.25rem', color: 'white', marginBottom: '16px' }}><Home size={20} /> {res.nome}</h3>
-                <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}><MapPin size={16} /> {res.endereco || 'Sem endereço'}</p>
+                <p style={{ color: 'var(--text-muted)', marginBottom: '8px' }}><MapPin size={16} /> {res.endereco || 'Sem endereço'}</p>
+                <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '8px', marginBottom: '24px', fontSize: '0.85rem' }}>
+                  <p><strong>Valor Base:</strong> R$ {parseFloat(res.valor_hora || 10).toFixed(2)} / hora</p>
+                  <p><strong>Adc. Noturno:</strong> {res.adicional_noturno === 1 ? `Sim (+${res.percentual_noturno || 20}%)` : 'Não'}</p>
+                </div>
                 <div className="flex-gap" style={{ justifyContent: 'flex-end' }}>
                   <button className="btn-icon" onClick={() => handleOpenResidenceModal(res)}><Edit2 size={18} /></button>
                   <button className="btn-icon" onClick={() => handleResidenceDelete(res.id)}><Trash2 size={18} color="var(--danger)" /></button>
@@ -355,13 +380,16 @@ function App() {
             {caregivers.map((c) => (
               <div key={c.id} className="card">
                 <h3 style={{ fontSize: '1.25rem', color: 'white', marginBottom: '16px' }}><UserCheck size={20} color="var(--success)" /> {c.nome}</h3>
-                <div style={{ marginBottom: '24px' }}>
+                <div style={{ marginBottom: '16px' }}>
                   <p style={{ fontSize: '0.9rem', marginBottom: '8px' }}>Atende em:</p>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                     {residences.filter(r => c.residencia_ids?.includes(r.id)).map(ar => (
                       <span key={ar.id} style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem' }}>{ar.nome}</span>
                     ))}
                   </div>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '8px', marginBottom: '24px', fontSize: '0.85rem' }}>
+                  <p><strong>Custo Específico:</strong> {c.valor_hora ? `R$ ${parseFloat(c.valor_hora).toFixed(2)} / hora` : 'Vinculado ao da Residência'}</p>
                 </div>
                 <div className="flex-gap" style={{ justifyContent: 'flex-end' }}>
                   <button className="btn-icon" onClick={() => handleOpenCaregiverModal(c)}><Edit2 size={18} /></button>
@@ -382,6 +410,22 @@ function App() {
              <form onSubmit={handleResidenceSubmit}>
                <div className="form-group"><label>Nome*</label><input autoFocus required className="form-control" value={residenceFormData.nome} onChange={e=>setResidenceFormData({...residenceFormData, nome:e.target.value})}/></div>
                <div className="form-group"><label>Endereço</label><input className="form-control" value={residenceFormData.endereco} onChange={e=>setResidenceFormData({...residenceFormData, endereco:e.target.value})}/></div>
+               <div className="form-group">
+                 <label>Valor Hora Padrão (R$)</label>
+                 <input type="number" step="0.01" className="form-control" value={residenceFormData.valor_hora} onChange={e=>setResidenceFormData({...residenceFormData, valor_hora:e.target.value})}/>
+               </div>
+               <div className="form-group">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input type="checkbox" checked={residenceFormData.adicional_noturno} onChange={e=>setResidenceFormData({...residenceFormData, adicional_noturno: e.target.checked})} />
+                    Aplicar Adicional Noturno (22h às 05h)?
+                  </label>
+               </div>
+               {residenceFormData.adicional_noturno && (
+                 <div className="form-group">
+                   <label>Acréscimo do Adicional Noturno (%) *Mín. 20%</label>
+                   <input type="number" min="20" step="0.1" required className="form-control" value={residenceFormData.percentual_noturno} onChange={e=>setResidenceFormData({...residenceFormData, percentual_noturno:e.target.value})}/>
+                 </div>
+               )}
                <div className="flex-gap" style={{justifyContent:'flex-end', marginTop:'32px'}}><button type="button" className="btn-secondary" onClick={() => setIsResidenceModalOpen(false)}>Cancelar</button><button type="submit" className="btn-primary">Salvar</button></div>
              </form>
            </div>
@@ -395,6 +439,10 @@ function App() {
              <h2 style={{color:'white', marginBottom:'24px'}}>{currentCaregiver?'Editar Prestador':'Novo Prestador de Serviço'}</h2>
              <form onSubmit={handleCaregiverSubmit}>
                <div className="form-group"><label>Nome*</label><input autoFocus required className="form-control" value={caregiverFormData.nome} onChange={e=>setCaregiverFormData({...caregiverFormData, nome:e.target.value})}/></div>
+               <div className="form-group">
+                 <label>Valor Hora Específico (R$)</label>
+                 <input type="number" step="0.01" className="form-control" placeholder="Deixe em branco para usar o da Residência" value={caregiverFormData.valor_hora} onChange={e=>setCaregiverFormData({...caregiverFormData, valor_hora:e.target.value})}/>
+               </div>
                <div className="form-group"><label>Atende nas Residências:</label>
                   <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
                     {residences.map(res => (

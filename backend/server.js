@@ -149,6 +149,80 @@ app.delete('/api/caregivers/:id', (req, res) => {
   });
 });
 
+// --- AGENDAMENTOS / CRONOGRAMA ---
+
+// Listar todos os agendamentos
+app.get('/api/schedules', (req, res) => {
+  const query = `
+    SELECT a.*, r.nome as residencia_nome, c.nome as cuidadora_nome 
+    FROM agendamentos a
+    JOIN residencias r ON a.residencia_id = r.id
+    JOIN cuidadoras c ON a.cuidadora_id = c.id
+    ORDER BY a.data_inicio ASC, a.hora_inicio ASC
+  `;
+  db.all(query, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+// Criar múltiplos agendamentos de uma vez (Batch - para lidar com lógicas de "dias ímpares", etc do frontend)
+app.post('/api/schedules/batch', (req, res) => {
+  const { schedules } = req.body;
+  if (!schedules || !Array.isArray(schedules) || schedules.length === 0) {
+    return res.status(400).json({ error: 'Lista de agendamentos inválida' });
+  }
+
+  const stmt = db.prepare(`
+    INSERT INTO agendamentos (id, residencia_id, cuidadora_id, data_inicio, hora_inicio, data_fim, hora_fim) 
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION');
+    try {
+      schedules.forEach(sched => {
+        const id = uuidv4();
+        stmt.run([id, sched.residencia_id, sched.cuidadora_id, sched.data_inicio, sched.hora_inicio, sched.data_fim, sched.hora_fim]);
+      });
+      db.run('COMMIT');
+      stmt.finalize();
+      res.status(201).json({ message: 'Agendamentos criados com sucesso' });
+    } catch (error) {
+      db.run('ROLLBACK');
+      res.status(500).json({ error: error.message });
+    }
+  });
+});
+
+// Editar um agendamento específico
+app.put('/api/schedules/:id', (req, res) => {
+  const { id } = req.params;
+  const { data_inicio, hora_inicio, data_fim, hora_fim } = req.body;
+
+  db.run(`
+    UPDATE agendamentos 
+    SET data_inicio = ?, hora_inicio = ?, data_fim = ?, hora_fim = ? 
+    WHERE id = ?`,
+    [data_inicio, hora_inicio, data_fim, hora_fim, id],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Agendamento não encontrado' });
+      res.json({ id, data_inicio, hora_inicio, data_fim, hora_fim });
+    }
+  );
+});
+
+// Excluir um agendamento específico
+app.delete('/api/schedules/:id', (req, res) => {
+  const { id } = req.params;
+  db.run('DELETE FROM agendamentos WHERE id = ?', id, function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Agendamento não encontrado' });
+    res.status(204).send();
+  });
+});
+
 const PORT = 3000;
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);

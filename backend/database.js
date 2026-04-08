@@ -32,6 +32,20 @@ const db = new sqlite3.Database(dbPath, (err) => {
           FOREIGN KEY (residencia_id) REFERENCES residencias(id) ON DELETE CASCADE
         )
       `);
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS agendamentos (
+          id TEXT PRIMARY KEY,
+          residencia_id TEXT NOT NULL,
+          cuidadora_id TEXT NOT NULL,
+          data_inicio TEXT NOT NULL,
+          hora_inicio TEXT NOT NULL,
+          data_fim TEXT NOT NULL,
+          hora_fim TEXT NOT NULL,
+          FOREIGN KEY (residencia_id) REFERENCES residencias(id) ON DELETE CASCADE,
+          FOREIGN KEY (cuidadora_id) REFERENCES cuidadoras(id) ON DELETE CASCADE
+        )
+      `);
     });
   }
 });

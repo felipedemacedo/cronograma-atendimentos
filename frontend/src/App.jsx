@@ -26,7 +26,7 @@ function App() {
   const [residenceFormData, setResidenceFormData] = useState({ nome: '', endereco: '', valor_hora: 10, adicional_noturno: false, percentual_noturno: 20 });
 
   const [currentCaregiver, setCurrentCaregiver] = useState(null);
-  const [caregiverFormData, setCaregiverFormData] = useState({ nome: '', residencia_ids: [], residencias_config: [], valor_hora: '', observacao: '', dias_disponiveis: [0,1,2,3,4,5,6], adicional_noturno: '', percentual_noturno: '' });
+  const [caregiverFormData, setCaregiverFormData] = useState({ nome: '', residencia_ids: [], residencias_config: [], valor_hora: '', observacao: '', dias_disponiveis: [0,1,2,3,4,5,6], adicional_noturno: '', percentual_noturno: '', regime_clt: false });
 
   const WEEKDAYS = [
     { id: 0, label: 'Domingo' }, { id: 1, label: 'Segunda' },
@@ -114,8 +114,9 @@ function App() {
       observacao: c.observacao || '',
       dias_disponiveis: c.dias_disponiveis || [0,1,2,3,4,5,6],
       adicional_noturno: c.adicional_noturno !== null && c.adicional_noturno !== undefined ? String(c.adicional_noturno) : '',
-      percentual_noturno: c.percentual_noturno || ''
-    } : { nome: '', residencia_ids: [], residencias_config: [], valor_hora: '', observacao: '', dias_disponiveis: [0,1,2,3,4,5,6], adicional_noturno: '', percentual_noturno: '' });
+      percentual_noturno: c.percentual_noturno || '',
+      regime_clt: c.regime_clt || false
+    } : { nome: '', residencia_ids: [], residencias_config: [], valor_hora: '', observacao: '', dias_disponiveis: [0,1,2,3,4,5,6], adicional_noturno: '', percentual_noturno: '', regime_clt: false });
     setIsCaregiverModalOpen(true);
   };
   const handleCaregiverSubmit = async (e) => {
@@ -401,15 +402,21 @@ function App() {
             </button>
           </div>
           <div className="grid">
-            {caregivers.map((c) => (
-              <div key={c.id} className="card">
-                <h3 style={{ fontSize: '1.25rem', color: 'white', marginBottom: '16px' }}><UserCheck size={20} color="var(--success)" /> {c.nome}</h3>
-                <div style={{ marginBottom: '16px' }}>
-                  <p style={{ fontSize: '0.9rem', marginBottom: '8px' }}>Atende em:</p>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                    {residences.filter(r => c.residencia_ids?.includes(r.id)).map(ar => (
-                      <span key={ar.id} style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem' }}>{ar.nome}</span>
-                    ))}
+            {caregivers.map(c => (
+              <div key={c.id} className="card" style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{ flexGrow: 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <h3 style={{ margin: 0, color: 'var(--primary)' }}>
+                      {c.nome} {c.regime_clt ? <span style={{fontSize:'0.7rem', background:'var(--warning)', color:'#000', padding:'2px 6px', borderRadius:'12px', marginLeft:'8px', verticalAlign:'middle'}}>Fixo/CLT</span> : null}
+                    </h3>
+                  </div>
+                  <div style={{ marginBottom: '16px' }}>
+                    <p style={{ fontSize: '0.9rem', marginBottom: '8px' }}>Atende em:</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {residences.filter(r => c.residencia_ids?.includes(r.id)).map(ar => (
+                        <span key={ar.id} style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem' }}>{ar.nome}</span>
+                      ))}
+                    </div>
                   </div>
                 </div>
                 {c.dias_disponiveis && c.dias_disponiveis.length < 7 && (
@@ -480,25 +487,39 @@ function App() {
             <h2 style={{ color: 'white', marginBottom: '24px' }}>{currentCaregiver ? 'Editar Prestador' : 'Novo Prestador de Serviço'}</h2>
             <form onSubmit={handleCaregiverSubmit}>
               <div className="form-group"><label>Nome*</label><input autoFocus required className="form-control" value={caregiverFormData.nome} onChange={e => setCaregiverFormData({ ...caregiverFormData, nome: e.target.value })} /></div>
-              <div className="form-group">
-                <label>Valor Hora Específico (R$)</label>
-                <input type="number" step="0.01" className="form-control" placeholder="Deixe em branco para usar o da Residência" value={caregiverFormData.valor_hora} onChange={e => setCaregiverFormData({ ...caregiverFormData, valor_hora: e.target.value })} />
+              <div className="form-group" style={{ marginBottom: '24px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                  <input type="checkbox" style={{ marginRight: '10px', width: '20px', height: '20px', accentColor: 'var(--warning)' }} checked={caregiverFormData.regime_clt} onChange={e => setCaregiverFormData({ ...caregiverFormData, regime_clt: e.target.checked })} />
+                  <div>
+                    <strong>Regime de Contratação Fixa (CLT / Mensalista)</strong>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0, marginTop: '4px', fontWeight: 'normal' }}>Marcador que exime o profissional dos cálculos na aba de Fechamento Financeiro, mas os mantém visualizáveis no calendário.</p>
+                  </div>
+                </label>
               </div>
 
-              <div className="form-group">
-                <label>Adicional Noturno (Específico)</label>
-                <select className="form-control" value={caregiverFormData.adicional_noturno} onChange={e => setCaregiverFormData({ ...caregiverFormData, adicional_noturno: e.target.value })}>
-                  <option value="">Usar Regras da Residência atendida</option>
-                  <option value="1">Forçar Aplicação do Adicional</option>
-                  <option value="0">Nunca Aplicar Adicional</option>
-                </select>
-              </div>
+              {!caregiverFormData.regime_clt && (
+                <>
+                  <div className="form-group">
+                    <label>Valor Hora Específico (R$)</label>
+                    <input type="number" step="0.01" className="form-control" placeholder="Deixe em branco para usar o da Residência" value={caregiverFormData.valor_hora} onChange={e => setCaregiverFormData({ ...caregiverFormData, valor_hora: e.target.value })} />
+                  </div>
 
-              {caregiverFormData.adicional_noturno === '1' && (
-                <div className="form-group">
-                  <label>Acréscimo do Adicional Noturno Específico (%) *Mín 20%</label>
-                  <input type="number" step="0.1" min="20" required className="form-control" value={caregiverFormData.percentual_noturno} onChange={e => setCaregiverFormData({ ...caregiverFormData, percentual_noturno: e.target.value })} />
-                </div>
+                  <div className="form-group">
+                    <label>Adicional Noturno (Específico)</label>
+                    <select className="form-control" value={caregiverFormData.adicional_noturno} onChange={e => setCaregiverFormData({ ...caregiverFormData, adicional_noturno: e.target.value })}>
+                      <option value="">Usar Regras da Residência atendida</option>
+                      <option value="1">Forçar Aplicação do Adicional</option>
+                      <option value="0">Nunca Aplicar Adicional</option>
+                    </select>
+                  </div>
+
+                  {caregiverFormData.adicional_noturno === '1' && (
+                    <div className="form-group">
+                      <label>Acréscimo do Adicional Noturno Específico (%) *Mín 20%</label>
+                      <input type="number" step="0.1" min="20" required className="form-control" value={caregiverFormData.percentual_noturno} onChange={e => setCaregiverFormData({ ...caregiverFormData, percentual_noturno: e.target.value })} />
+                    </div>
+                  )}
+                </>
               )}
               
               <div className="form-group">

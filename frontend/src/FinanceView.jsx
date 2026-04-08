@@ -9,7 +9,7 @@ export default function FinanceView({ schedules, caregivers, residences, current
     if (!schedules) return [];
     
     const [yStr, mStr] = selectedMonth.split('-');
-    const reportSchedules = schedules.filter(s => s.data_inicio.startsWith(`${yStr}-${mStr}`));
+    const reportSchedules = schedules.filter(s => s.data_inicio.startsWith(`${yStr}-${mStr}`) && s.cuidadora_regime_clt !== 1);
 
     const caregiverTotals = {};
 

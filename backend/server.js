@@ -100,7 +100,7 @@ app.get('/api/caregivers', (req, res) => {
 
 // Criar cuidadora
 app.post('/api/caregivers', (req, res) => {
-  const { nome, residencia_ids, residencias_config, valor_hora, observacao, dias_disponiveis, adicional_noturno, percentual_noturno } = req.body;
+  const { nome, residencia_ids, residencias_config, valor_hora, observacao, dias_disponiveis, adicional_noturno, percentual_noturno, regime_clt } = req.body;
   if (!nome) return res.status(400).json({ error: 'Nome é obrigatório' });
   
   const id = uuidv4();
@@ -108,11 +108,12 @@ app.post('/api/caregivers', (req, res) => {
   const diasStr = dias_disponiveis ? JSON.stringify(dias_disponiveis) : '[0,1,2,3,4,5,6]';
   const aNoturno = adicional_noturno !== undefined && adicional_noturno !== '' ? parseInt(adicional_noturno) : null;
   const pNoturno = percentual_noturno !== undefined && percentual_noturno !== '' ? parseFloat(percentual_noturno) : null;
+  const isClt = regime_clt ? 1 : 0;
 
   db.serialize(() => {
     db.run('BEGIN TRANSACTION');
     try {
-      db.run('INSERT INTO cuidadoras (id, nome, valor_hora, observacao, dias_disponiveis, adicional_noturno, percentual_noturno) VALUES (?, ?, ?, ?, ?, ?, ?)', [id, nome, vHora, observacao || '', diasStr, aNoturno, pNoturno]);
+      db.run('INSERT INTO cuidadoras (id, nome, valor_hora, observacao, dias_disponiveis, adicional_noturno, percentual_noturno, regime_clt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [id, nome, vHora, observacao || '', diasStr, aNoturno, pNoturno, isClt]);
       
       const configs = residencias_config || (residencia_ids || []).map(rId => ({ id: rId, valor_transporte: 9 }));
       if (configs.length > 0) {
@@ -121,7 +122,7 @@ app.post('/api/caregivers', (req, res) => {
         stmt.finalize();
       }
       db.run('COMMIT');
-      res.status(201).json({ id, nome, valor_hora: vHora, observacao, dias_disponiveis, residencia_ids: configs.map(c => c.id), residencias_config: configs });
+      res.status(201).json({ id, nome, valor_hora: vHora, observacao, dias_disponiveis, regime_clt: isClt === 1, residencia_ids: configs.map(c => c.id), residencias_config: configs });
     } catch (error) {
       db.run('ROLLBACK');
       res.status(500).json({ error: error.message });
@@ -132,16 +133,17 @@ app.post('/api/caregivers', (req, res) => {
 // Atualizar cuidadora
 app.put('/api/caregivers/:id', (req, res) => {
   const { id } = req.params;
-  const { nome, residencia_ids, residencias_config, valor_hora, observacao, dias_disponiveis, adicional_noturno, percentual_noturno } = req.body;
+  const { nome, residencia_ids, residencias_config, valor_hora, observacao, dias_disponiveis, adicional_noturno, percentual_noturno, regime_clt } = req.body;
   const vHora = valor_hora !== undefined && valor_hora !== '' ? valor_hora : null;
   const diasStr = dias_disponiveis ? JSON.stringify(dias_disponiveis) : '[0,1,2,3,4,5,6]';
   const aNoturno = adicional_noturno !== undefined && adicional_noturno !== '' ? parseInt(adicional_noturno) : null;
   const pNoturno = percentual_noturno !== undefined && percentual_noturno !== '' ? parseFloat(percentual_noturno) : null;
+  const isClt = regime_clt ? 1 : 0;
 
   db.serialize(() => {
     db.run('BEGIN TRANSACTION');
     try {
-      db.run('UPDATE cuidadoras SET nome = ?, valor_hora = ?, observacao = ?, dias_disponiveis = ?, adicional_noturno = ?, percentual_noturno = ? WHERE id = ?', [nome, vHora, observacao || '', diasStr, aNoturno, pNoturno, id]);
+      db.run('UPDATE cuidadoras SET nome = ?, valor_hora = ?, observacao = ?, dias_disponiveis = ?, adicional_noturno = ?, percentual_noturno = ?, regime_clt = ? WHERE id = ?', [nome, vHora, observacao || '', diasStr, aNoturno, pNoturno, isClt, id]);
       db.run('DELETE FROM cuidadora_residencia WHERE cuidadora_id = ?', id);
       
       const configs = residencias_config || (residencia_ids || []).map(rId => ({ id: rId, valor_transporte: 9 }));
@@ -152,7 +154,7 @@ app.put('/api/caregivers/:id', (req, res) => {
       }
       
       db.run('COMMIT');
-      res.json({ id, nome, valor_hora: vHora, observacao, dias_disponiveis, residencia_ids: configs.map(c => c.id), residencias_config: configs });
+      res.json({ id, nome, valor_hora: vHora, observacao, dias_disponiveis, regime_clt: isClt === 1, residencia_ids: configs.map(c => c.id), residencias_config: configs });
     } catch (error) {
       db.run('ROLLBACK');
       res.status(500).json({ error: error.message });
@@ -184,6 +186,7 @@ app.get('/api/schedules', (req, res) => {
            r.percentual_noturno as residencia_percentual_noturno,
            c.nome as cuidadora_nome,
            c.valor_hora as cuidadora_valor_hora,
+           c.regime_clt as cuidadora_regime_clt,
            c.adicional_noturno as cuidadora_adicional_noturno,
            c.percentual_noturno as cuidadora_percentual_noturno,
            COALESCE(cr.valor_transporte, 9) as valor_transporte

@@ -28,7 +28,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
           observacao TEXT,
           dias_disponiveis TEXT DEFAULT '[0,1,2,3,4,5,6]',
           adicional_noturno INTEGER DEFAULT NULL,
-          percentual_noturno REAL DEFAULT NULL
+          percentual_noturno REAL DEFAULT NULL,
+          regime_clt INTEGER DEFAULT 0
         )
       `);
 

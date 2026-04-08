@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Plus, Home, MapPin, Edit2, Trash2, Users, UserCheck, CalendarDays, Clock } from 'lucide-react';
+import { Plus, Home, MapPin, Edit2, Trash2, Users, UserCheck, CalendarDays, Clock, MonitorPlay } from 'lucide-react';
 import api from './api';
+import CalendarView from './CalendarView';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('schedules'); // 'residences', 'caregivers', 'schedules'
+  const [activeTab, setActiveTab] = useState('calendar'); // 'residences', 'caregivers', 'schedules', 'calendar'
   
   // Data states
   const [residences, setResidences] = useState([]);
@@ -197,9 +198,14 @@ function App() {
         <button onClick={() => setActiveTab('schedules')} className="btn-secondary" style={{ background: activeTab === 'schedules' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'schedules' ? 'var(--primary)' : 'var(--border)' }}>
           <CalendarDays size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }}/> Cronograma
         </button>
+        <button onClick={() => setActiveTab('calendar')} className="btn-secondary" style={{ background: activeTab === 'calendar' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'calendar' ? 'var(--primary)' : 'var(--border)' }}>
+          <MonitorPlay size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }}/> Visualização Geral
+        </button>
       </div>
 
-      {activeTab === 'schedules' ? (
+      {activeTab === 'calendar' ? (
+        <CalendarView schedules={schedules} residences={residences} />
+      ) : activeTab === 'schedules' ? (
         <>
           <div className="flex-between" style={{ marginBottom: '24px' }}>
             <h2 style={{ color: 'white' }}>Agenda de Atendimentos</h2>

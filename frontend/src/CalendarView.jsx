@@ -235,9 +235,7 @@ export default function CalendarView({ schedules, residences, selectedMonth, set
                         <div 
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (window.confirm('Excluir este plantão?')) {
-                              if (onDeleteSchedule) onDeleteSchedule(block.original.id);
-                            }
+                            if (onDeleteSchedule) onDeleteSchedule(block.original.id);
                           }}
                           style={{
                             position: 'absolute',

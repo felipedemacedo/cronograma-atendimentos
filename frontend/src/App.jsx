@@ -215,7 +215,7 @@ function App() {
         <div>
           <h1>Gestão de Atendimento</h1>
           <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
-            Gerencie as residências, cuidadoras e seus horários.
+            Gerencie as residências, prestadores de serviços e seus horários.
           </p>
         </div>
       </header>
@@ -226,7 +226,7 @@ function App() {
           <Home size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }}/> Residências
         </button>
         <button onClick={() => setActiveTab('caregivers')} className="btn-secondary" style={{ background: activeTab === 'caregivers' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'caregivers' ? 'var(--primary)' : 'var(--border)' }}>
-          <Users size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }}/> Cuidadoras
+          <Users size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }}/> Prestadores de Serviço
         </button>
         <button onClick={() => setActiveTab('schedules')} className="btn-secondary" style={{ background: activeTab === 'schedules' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'schedules' ? 'var(--primary)' : 'var(--border)' }}>
           <CalendarDays size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }}/> Cronograma
@@ -346,7 +346,7 @@ function App() {
       ) : (
         <>
            <div className="flex-between" style={{ marginBottom: '24px' }}>
-            <h2 style={{ color: 'white' }}>Cuidadoras</h2>
+            <h2 style={{ color: 'white' }}>Prestadores de Serviços</h2>
             <button className="btn-primary" onClick={() => handleOpenCaregiverModal()}>
               <Plus size={20} /> Nova
             </button>
@@ -392,7 +392,7 @@ function App() {
       {isCaregiverModalOpen && (
         <div className="modal-overlay" onClick={() => setIsCaregiverModalOpen(false)}>
            <div className="modal-content" onClick={e=>e.stopPropagation()}>
-             <h2 style={{color:'white', marginBottom:'24px'}}>{currentCaregiver?'Editar Cuidadora':'Nova Cuidadora'}</h2>
+             <h2 style={{color:'white', marginBottom:'24px'}}>{currentCaregiver?'Editar Prestador':'Novo Prestador de Serviço'}</h2>
              <form onSubmit={handleCaregiverSubmit}>
                <div className="form-group"><label>Nome*</label><input required className="form-control" value={caregiverFormData.nome} onChange={e=>setCaregiverFormData({...caregiverFormData, nome:e.target.value})}/></div>
                <div className="form-group"><label>Atende nas Residências:</label>
@@ -425,7 +425,7 @@ function App() {
                  </select>
                </div>
                <div className="form-group">
-                 <label>Cuidadora*</label>
+                 <label>Prestador de Serviço*</label>
                  <select required className="form-control" value={scheduleFormData.cuidadora_id} onChange={e=>setScheduleFormData({...scheduleFormData, cuidadora_id:e.target.value})} disabled={!scheduleFormData.residencia_id}>
                    <option value="">Selecione...</option>
                    {caregivers.filter(c => c.residencia_ids.includes(scheduleFormData.residencia_id)).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}

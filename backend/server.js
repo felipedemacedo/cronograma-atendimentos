@@ -1,7 +1,9 @@
 const express = require('express');
 const cors = require('cors');
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 const db = require('./database');
+
+const uuidv4 = () => crypto.randomUUID();
 
 const app = express();
 app.use(cors());
@@ -267,7 +269,10 @@ app.delete('/api/schedules/:id', (req, res) => {
   });
 });
 
-const PORT = 3000;
-app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
-});
+const PORT = 3000;if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Servidor rodando na porta ${PORT}`);
+  });
+}
+
+module.exports = app;

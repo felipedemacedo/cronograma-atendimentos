@@ -26,7 +26,7 @@ const getDayOfWeek = (year, month, day) => {
   return days[new Date(year, month - 1, day).getDay()];
 };
 
-export default function CalendarView({ schedules, residences, selectedMonth, setSelectedMonth, selectedResidencia, setSelectedResidencia }) {
+export default function CalendarView({ schedules, residences, selectedMonth, setSelectedMonth, selectedResidencia, setSelectedResidencia, onEditSchedule }) {
   const visualData = useMemo(() => {
     if (!selectedMonth || !selectedResidencia) return null;
     
@@ -47,7 +47,8 @@ export default function CalendarView({ schedules, residences, selectedMonth, set
           start: parseTime(s.hora_inicio),
           end: parseTime(s.hora_fim),
           name: s.cuidadora_nome,
-          color: getColorForId(s.cuidadora_nome)
+          color: getColorForId(s.cuidadora_nome),
+          original: s
         });
       } else {
         // Spans midnight, split in two blocks
@@ -56,14 +57,16 @@ export default function CalendarView({ schedules, residences, selectedMonth, set
           start: parseTime(s.hora_inicio),
           end: 24,
           name: s.cuidadora_nome,
-          color: getColorForId(s.cuidadora_nome)
+          color: getColorForId(s.cuidadora_nome),
+          original: s
         });
         blocks.push({
           date: s.data_fim,
           start: 0,
           end: parseTime(s.hora_fim),
           name: s.cuidadora_nome,
-          color: getColorForId(s.cuidadora_nome)
+          color: getColorForId(s.cuidadora_nome),
+          original: s
         });
       }
     });
@@ -216,9 +219,14 @@ export default function CalendarView({ schedules, residences, selectedMonth, set
                           textOverflow: 'ellipsis',
                           boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
                           opacity: 0.9,
-                          zIndex: 10
+                          zIndex: 10,
+                          cursor: 'pointer'
                         }}
-                        title={`${block.name} (${String(Math.floor(block.start)).padStart(2,'0')}:00 - ${String(Math.floor(block.end)).padStart(2,'0')}:00)`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onEditSchedule) onEditSchedule(block.original);
+                        }}
+                        title={`${block.name} (${String(Math.floor(block.start)).padStart(2,'0')}:00 - ${String(Math.floor(block.end)).padStart(2,'0')}:00) - Clique para editar`}
                       >
                         {widthPerc > 5 && block.name}
                       </div>

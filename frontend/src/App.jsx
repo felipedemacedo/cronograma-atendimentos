@@ -287,6 +287,7 @@ function App() {
           setSelectedMonth={setViewMonth}
           selectedResidencia={viewResidencia}
           setSelectedResidencia={setViewResidencia}
+          onEditSchedule={handleOpenEditScheduleModal}
         />
       ) : activeTab === 'schedules' ? (
         <>

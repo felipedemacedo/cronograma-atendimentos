@@ -208,6 +208,11 @@ body {
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
 }
 
+.form-control option {
+  background-color: var(--bg-dark);
+  color: white;
+}
+
 /* Layout helpers */
 .container {
   max-width: 1200px;
@@ -225,6 +230,7 @@ body {
   font-size: 2rem;
   background: linear-gradient(to right, #fff, var(--text-muted));
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 

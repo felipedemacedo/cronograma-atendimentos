@@ -19,6 +19,7 @@ export default function FinanceView({ schedules, caregivers, residences, current
           id: s.cuidadora_id,
           nome: s.cuidadora_nome,
           totalCost: 0,
+          transportTotal: 0,
           normalHoursTotal: 0,
           nightHoursTotal: 0,
           shiftsCount: 0
@@ -52,8 +53,12 @@ export default function FinanceView({ schedules, caregivers, residences, current
       } else {
         shiftCost += nightHours * baseRate;
       }
+      
+      const transportCost = parseFloat(s.valor_transporte !== null && s.valor_transporte !== undefined ? s.valor_transporte : 9);
+      shiftCost += transportCost;
 
       caregiverTotals[s.cuidadora_id].totalCost += shiftCost;
+      caregiverTotals[s.cuidadora_id].transportTotal += transportCost;
       caregiverTotals[s.cuidadora_id].normalHoursTotal += normalHours;
       caregiverTotals[s.cuidadora_id].nightHoursTotal += nightHours;
       caregiverTotals[s.cuidadora_id].shiftsCount += 1;
@@ -107,9 +112,15 @@ export default function FinanceView({ schedules, caregivers, residences, current
                   <span>Horas Normais:</span>
                   <span style={{ color: 'white', fontWeight: '500' }}>{c.normalHoursTotal.toFixed(1)}h</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <span>Horas Noturnas:</span>
                   <span style={{ color: 'white', fontWeight: '500' }}>{c.nightHoursTotal.toFixed(1)}h</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Transporte Pago:</span>
+                  <span style={{ color: 'white', fontWeight: '500' }}>
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(c.transportTotal)}
+                  </span>
                 </div>
               </div>
 

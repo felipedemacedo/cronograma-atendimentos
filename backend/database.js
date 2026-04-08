@@ -31,6 +31,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
         CREATE TABLE IF NOT EXISTS cuidadora_residencia (
           cuidadora_id TEXT,
           residencia_id TEXT,
+          valor_transporte REAL DEFAULT 9,
           PRIMARY KEY (cuidadora_id, residencia_id),
           FOREIGN KEY (cuidadora_id) REFERENCES cuidadoras(id) ON DELETE CASCADE,
           FOREIGN KEY (residencia_id) REFERENCES residencias(id) ON DELETE CASCADE

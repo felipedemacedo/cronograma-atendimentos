@@ -6,7 +6,7 @@ import FinanceView from './FinanceView';
 
 function App() {
   const [activeTab, setActiveTab] = useState('calendar'); // 'residences', 'caregivers', 'schedules', 'calendar', 'finance'
-  
+
   // Data states
   const [residences, setResidences] = useState([]);
   const [caregivers, setCaregivers] = useState([]);
@@ -26,7 +26,7 @@ function App() {
   const [residenceFormData, setResidenceFormData] = useState({ nome: '', endereco: '', valor_hora: 10, adicional_noturno: false, percentual_noturno: 20 });
 
   const [currentCaregiver, setCurrentCaregiver] = useState(null);
-  const [caregiverFormData, setCaregiverFormData] = useState({ nome: '', residencia_ids: [], valor_hora: '' });
+  const [caregiverFormData, setCaregiverFormData] = useState({ nome: '', residencia_ids: [], residencias_config: [], valor_hora: '' });
 
   const [scheduleFormData, setScheduleFormData] = useState({
     residencia_id: '',
@@ -72,9 +72,9 @@ function App() {
   // --- Residence Handlers ---
   const handleOpenResidenceModal = (r = null) => {
     setCurrentResidence(r);
-    setResidenceFormData(r ? { 
-      nome: r.nome, 
-      endereco: r.endereco || '', 
+    setResidenceFormData(r ? {
+      nome: r.nome,
+      endereco: r.endereco || '',
       valor_hora: r.valor_hora || 10,
       adicional_noturno: r.adicional_noturno === 1,
       percentual_noturno: r.percentual_noturno || 20
@@ -103,8 +103,9 @@ function App() {
     setCaregiverFormData(c ? { 
       nome: c.nome, 
       residencia_ids: c.residencia_ids || [],
+      residencias_config: c.residencias_config || [],
       valor_hora: c.valor_hora || ''
-    } : { nome: '', residencia_ids: [], valor_hora: '' });
+    } : { nome: '', residencia_ids: [], residencias_config: [], valor_hora: '' });
     setIsCaregiverModalOpen(true);
   };
   const handleCaregiverSubmit = async (e) => {
@@ -125,7 +126,7 @@ function App() {
 
   // --- Schedule Generation Handlers ---
   const getNextDayStr = (dateStr) => {
-    const d = new Date(dateStr + 'T12:00:00'); 
+    const d = new Date(dateStr + 'T12:00:00');
     d.setDate(d.getDate() + 1);
     return d.toISOString().split('T')[0];
   };
@@ -216,7 +217,7 @@ function App() {
   // Helpers UI
   const formatDisplayDate = (dStr) => {
     const parts = dStr.split('-');
-    if(parts.length !== 3) return dStr;
+    if (parts.length !== 3) return dStr;
     return `${parts[2]}/${parts[1]}/${parts[0]}`;
   };
 
@@ -234,33 +235,33 @@ function App() {
       {/* Tabs */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginBottom: '32px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
         <button onClick={() => setActiveTab('residences')} className="btn-secondary" style={{ background: activeTab === 'residences' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'residences' ? 'var(--primary)' : 'var(--border)' }}>
-          <Home size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }}/> Residências
+          <Home size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Residências
         </button>
         <button onClick={() => setActiveTab('caregivers')} className="btn-secondary" style={{ background: activeTab === 'caregivers' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'caregivers' ? 'var(--primary)' : 'var(--border)' }}>
-          <Users size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }}/> Prestadores de Serviço
+          <Users size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Prestadores de Serviço
         </button>
         <button onClick={() => setActiveTab('schedules')} className="btn-secondary" style={{ background: activeTab === 'schedules' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'schedules' ? 'var(--primary)' : 'var(--border)' }}>
-          <CalendarDays size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }}/> Cronograma
+          <CalendarDays size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Atendimentos
         </button>
         <button onClick={() => setActiveTab('calendar')} className="btn-secondary" style={{ background: activeTab === 'calendar' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'calendar' ? 'var(--primary)' : 'var(--border)' }}>
-          <MonitorPlay size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }}/> Visualização Geral
+          <MonitorPlay size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Calendário
         </button>
         <button onClick={() => setActiveTab('finance')} className="btn-secondary" style={{ background: activeTab === 'finance' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'finance' ? 'var(--primary)' : 'var(--border)' }}>
-          <DollarSign size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }}/> Financeiro
+          <DollarSign size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Financeiro
         </button>
       </div>
 
       {activeTab === 'finance' ? (
-        <FinanceView 
-          schedules={schedules} 
-          caregivers={caregivers} 
-          residences={residences} 
-          currentEnvDate={currentEnvDate} 
+        <FinanceView
+          schedules={schedules}
+          caregivers={caregivers}
+          residences={residences}
+          currentEnvDate={currentEnvDate}
         />
       ) : activeTab === 'calendar' ? (
-        <CalendarView 
-          schedules={schedules} 
-          residences={residences} 
+        <CalendarView
+          schedules={schedules}
+          residences={residences}
           selectedMonth={viewMonth}
           setSelectedMonth={setViewMonth}
           selectedResidencia={viewResidencia}
@@ -303,8 +304,8 @@ function App() {
                 <div key={s.id} onClick={() => toggleScheduleSelection(s.id)} className="card" style={{ padding: '20px', cursor: 'pointer', border: selectedSchedules.includes(s.id) ? '2px solid var(--primary)' : '1px solid var(--border)', transition: 'all 0.2s', background: selectedSchedules.includes(s.id) ? 'rgba(99, 102, 241, 0.05)' : 'var(--bg-card)' }}>
                   <div className="flex-between" style={{ marginBottom: '12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         checked={selectedSchedules.includes(s.id)}
                         onChange={(e) => { e.stopPropagation(); toggleScheduleSelection(s.id); }}
                         style={{ width: '18px', height: '18px', accentColor: 'var(--primary)', cursor: 'pointer' }}
@@ -312,21 +313,21 @@ function App() {
                       <h3 style={{ fontSize: '1.2rem', color: 'white', margin: 0 }}>{s.cuidadora_nome}</h3>
                     </div>
                     <span style={{ fontSize: '0.8rem', background: 'rgba(99,102,241,0.2)', color: 'var(--primary)', padding: '4px 8px', borderRadius: '4px' }}>
-                      <Home size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }}/>
+                      <Home size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
                       {s.residencia_nome}
                     </span>
                   </div>
-                  
+
                   <div style={{ display: 'flex', gap: '16px', color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '20px', background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px' }}>
                     <div>
                       <strong style={{ color: 'white', display: 'block', marginBottom: '4px' }}>Início</strong>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><CalendarDays size={14}/> {formatDisplayDate(s.data_inicio)}</div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}><Clock size={14}/> {s.hora_inicio}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><CalendarDays size={14} /> {formatDisplayDate(s.data_inicio)}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}><Clock size={14} /> {s.hora_inicio}</div>
                     </div>
                     <div>
                       <strong style={{ color: 'white', display: 'block', marginBottom: '4px' }}>Término</strong>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><CalendarDays size={14}/> {formatDisplayDate(s.data_fim)}</div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}><Clock size={14}/> {s.hora_fim}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><CalendarDays size={14} /> {formatDisplayDate(s.data_fim)}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}><Clock size={14} /> {s.hora_fim}</div>
                     </div>
                   </div>
 
@@ -370,7 +371,7 @@ function App() {
         </>
       ) : (
         <>
-           <div className="flex-between" style={{ marginBottom: '24px' }}>
+          <div className="flex-between" style={{ marginBottom: '24px' }}>
             <h2 style={{ color: 'white' }}>Prestadores de Serviços</h2>
             <button className="btn-primary" onClick={() => handleOpenCaregiverModal()}>
               <Plus size={20} /> Nova
@@ -404,150 +405,186 @@ function App() {
       {/* MODAL: RESIDENCE EDIT/CREATE */}
       {isResidenceModalOpen && (
         <div className="modal-overlay" onClick={() => setIsResidenceModalOpen(false)}>
-           {/* ... UI igual ... */}
-           <div className="modal-content" onClick={e=>e.stopPropagation()}>
-             <h2 style={{color:'white', marginBottom:'24px'}}>{currentResidence?'Editar Residência':'Nova Residência'}</h2>
-             <form onSubmit={handleResidenceSubmit}>
-               <div className="form-group"><label>Nome*</label><input autoFocus required className="form-control" value={residenceFormData.nome} onChange={e=>setResidenceFormData({...residenceFormData, nome:e.target.value})}/></div>
-               <div className="form-group"><label>Endereço</label><input className="form-control" value={residenceFormData.endereco} onChange={e=>setResidenceFormData({...residenceFormData, endereco:e.target.value})}/></div>
-               <div className="form-group">
-                 <label>Valor Hora Padrão (R$)</label>
-                 <input type="number" step="0.01" className="form-control" value={residenceFormData.valor_hora} onChange={e=>setResidenceFormData({...residenceFormData, valor_hora:e.target.value})}/>
-               </div>
-               <div className="form-group">
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <input type="checkbox" checked={residenceFormData.adicional_noturno} onChange={e=>setResidenceFormData({...residenceFormData, adicional_noturno: e.target.checked})} />
-                    Aplicar Adicional Noturno (22h às 05h)?
-                  </label>
-               </div>
-               {residenceFormData.adicional_noturno && (
-                 <div className="form-group">
-                   <label>Acréscimo do Adicional Noturno (%) *Mín. 20%</label>
-                   <input type="number" min="20" step="0.1" required className="form-control" value={residenceFormData.percentual_noturno} onChange={e=>setResidenceFormData({...residenceFormData, percentual_noturno:e.target.value})}/>
-                 </div>
-               )}
-               <div className="flex-gap" style={{justifyContent:'flex-end', marginTop:'32px'}}><button type="button" className="btn-secondary" onClick={() => setIsResidenceModalOpen(false)}>Cancelar</button><button type="submit" className="btn-primary">Salvar</button></div>
-             </form>
-           </div>
+          {/* ... UI igual ... */}
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <h2 style={{ color: 'white', marginBottom: '24px' }}>{currentResidence ? 'Editar Residência' : 'Nova Residência'}</h2>
+            <form onSubmit={handleResidenceSubmit}>
+              <div className="form-group"><label>Nome*</label><input autoFocus required className="form-control" value={residenceFormData.nome} onChange={e => setResidenceFormData({ ...residenceFormData, nome: e.target.value })} /></div>
+              <div className="form-group"><label>Endereço</label><input className="form-control" value={residenceFormData.endereco} onChange={e => setResidenceFormData({ ...residenceFormData, endereco: e.target.value })} /></div>
+              <div className="form-group">
+                <label>Valor Hora Padrão (R$)</label>
+                <input type="number" step="0.01" className="form-control" value={residenceFormData.valor_hora} onChange={e => setResidenceFormData({ ...residenceFormData, valor_hora: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input type="checkbox" checked={residenceFormData.adicional_noturno} onChange={e => setResidenceFormData({ ...residenceFormData, adicional_noturno: e.target.checked })} />
+                  Aplicar Adicional Noturno (22h às 05h)?
+                </label>
+              </div>
+              {residenceFormData.adicional_noturno && (
+                <div className="form-group">
+                  <label>Acréscimo do Adicional Noturno (%) *Mín. 20%</label>
+                  <input type="number" min="20" step="0.1" required className="form-control" value={residenceFormData.percentual_noturno} onChange={e => setResidenceFormData({ ...residenceFormData, percentual_noturno: e.target.value })} />
+                </div>
+              )}
+              <div className="flex-gap" style={{ justifyContent: 'flex-end', marginTop: '32px' }}><button type="button" className="btn-secondary" onClick={() => setIsResidenceModalOpen(false)}>Cancelar</button><button type="submit" className="btn-primary">Salvar</button></div>
+            </form>
+          </div>
         </div>
       )}
 
       {/* MODAL: CAREGIVER EDIT/CREATE */}
       {isCaregiverModalOpen && (
         <div className="modal-overlay" onClick={() => setIsCaregiverModalOpen(false)}>
-           <div className="modal-content" onClick={e=>e.stopPropagation()}>
-             <h2 style={{color:'white', marginBottom:'24px'}}>{currentCaregiver?'Editar Prestador':'Novo Prestador de Serviço'}</h2>
-             <form onSubmit={handleCaregiverSubmit}>
-               <div className="form-group"><label>Nome*</label><input autoFocus required className="form-control" value={caregiverFormData.nome} onChange={e=>setCaregiverFormData({...caregiverFormData, nome:e.target.value})}/></div>
-               <div className="form-group">
-                 <label>Valor Hora Específico (R$)</label>
-                 <input type="number" step="0.01" className="form-control" placeholder="Deixe em branco para usar o da Residência" value={caregiverFormData.valor_hora} onChange={e=>setCaregiverFormData({...caregiverFormData, valor_hora:e.target.value})}/>
-               </div>
-               <div className="form-group"><label>Atende nas Residências:</label>
-                  <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
-                    {residences.map(res => (
-                      <label key={res.id} style={{color:'white'}}><input type="checkbox" style={{marginRight:'8px'}} checked={caregiverFormData.residencia_ids?.includes(res.id)} onChange={() => {
-                        const ids = caregiverFormData.residencia_ids;
-                        setCaregiverFormData({...caregiverFormData, residencia_ids: ids.includes(res.id) ? ids.filter(i=>i!==res.id) : [...ids, res.id]});
-                      }}/>{res.nome}</label>
-                    ))}
-                  </div>
-               </div>
-               <div className="flex-gap" style={{justifyContent:'flex-end', marginTop:'32px'}}><button type="button" className="btn-secondary" onClick={() => setIsCaregiverModalOpen(false)}>Cancelar</button><button type="submit" className="btn-primary">Salvar</button></div>
-             </form>
-           </div>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <h2 style={{ color: 'white', marginBottom: '24px' }}>{currentCaregiver ? 'Editar Prestador' : 'Novo Prestador de Serviço'}</h2>
+            <form onSubmit={handleCaregiverSubmit}>
+              <div className="form-group"><label>Nome*</label><input autoFocus required className="form-control" value={caregiverFormData.nome} onChange={e => setCaregiverFormData({ ...caregiverFormData, nome: e.target.value })} /></div>
+              <div className="form-group">
+                <label>Valor Hora Específico (R$)</label>
+                <input type="number" step="0.01" className="form-control" placeholder="Deixe em branco para usar o da Residência" value={caregiverFormData.valor_hora} onChange={e => setCaregiverFormData({ ...caregiverFormData, valor_hora: e.target.value })} />
+              </div>
+              <div className="form-group"><label>Atende nas Residências:</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {residences.map(res => {
+                    const isChecked = caregiverFormData.residencia_ids?.includes(res.id);
+                    const config = caregiverFormData.residencias_config?.find(c => c.id === res.id) || { id: res.id, valor_transporte: 9 };
+                    return (
+                      <div key={res.id} style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: 'rgba(255,255,255,0.02)', padding: '8px', borderRadius: '4px' }}>
+                        <label style={{ color: 'white', display: 'flex', alignItems: 'center' }}>
+                          <input type="checkbox" style={{ marginRight: '8px' }} checked={isChecked} onChange={() => {
+                            const ids = caregiverFormData.residencia_ids;
+                            const configs = caregiverFormData.residencias_config || [];
+                            if (isChecked) {
+                              setCaregiverFormData({ 
+                                ...caregiverFormData, 
+                                residencia_ids: ids.filter(i => i !== res.id),
+                                residencias_config: configs.filter(c => c.id !== res.id)
+                              });
+                            } else {
+                              setCaregiverFormData({ 
+                                ...caregiverFormData, 
+                                residencia_ids: [...ids, res.id],
+                                residencias_config: [...configs, { id: res.id, valor_transporte: 9 }]
+                              });
+                            }
+                          }} />{res.nome}
+                        </label>
+                        {isChecked && (
+                          <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            Transporte (Ida e Volta) R$:
+                            <input type="number" step="0.01" value={config.valor_transporte} onChange={(e) => {
+                               const val = e.target.value;
+                               const cfgs = caregiverFormData.residencias_config || [];
+                               const exist = cfgs.find(c => c.id === res.id);
+                               if (exist) {
+                                 setCaregiverFormData({ ...caregiverFormData, residencias_config: cfgs.map(c => c.id === res.id ? { ...c, valor_transporte: val } : c) });
+                               } else {
+                                 setCaregiverFormData({ ...caregiverFormData, residencias_config: [...cfgs, { id: res.id, valor_transporte: val }] });
+                               }
+                            }} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'white', padding: '2px 4px', borderRadius: '4px', width: '70px' }} />
+                          </label>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="flex-gap" style={{ justifyContent: 'flex-end', marginTop: '32px' }}><button type="button" className="btn-secondary" onClick={() => setIsCaregiverModalOpen(false)}>Cancelar</button><button type="submit" className="btn-primary">Salvar</button></div>
+            </form>
+          </div>
         </div>
       )}
 
       {/* MODAL: SCHEDULE BATCH GENERATION */}
       {isScheduleModalOpen && (
         <div className="modal-overlay" onClick={() => setIsScheduleModalOpen(false)}>
-           <div className="modal-content" onClick={e=>e.stopPropagation()}>
-             <h2 style={{color:'white', marginBottom:'24px'}}>Gerar Agendamentos</h2>
-             <form onSubmit={handleScheduleSubmit}>
-               <div className="form-group">
-                 <label>Residência*</label>
-                 <select required className="form-control" value={scheduleFormData.residencia_id} onChange={e=>setScheduleFormData({...scheduleFormData, residencia_id:e.target.value, cuidadora_id: ''})}>
-                   <option value="">Selecione...</option>
-                   {residences.map(r => <option key={r.id} value={r.id}>{r.nome}</option>)}
-                 </select>
-               </div>
-               <div className="form-group">
-                 <label>Prestador de Serviço*</label>
-                 <select required className="form-control" value={scheduleFormData.cuidadora_id} onChange={e=>setScheduleFormData({...scheduleFormData, cuidadora_id:e.target.value})} disabled={!scheduleFormData.residencia_id}>
-                   <option value="">Selecione...</option>
-                   {caregivers.filter(c => c.residencia_ids.includes(scheduleFormData.residencia_id)).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                 </select>
-               </div>
-               
-               <div className="form-group">
-                 <label>Mês / Ano*</label>
-                 <input type="month" required className="form-control" value={scheduleFormData.month} onChange={e=>setScheduleFormData({...scheduleFormData, month:e.target.value})}/>
-               </div>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <h2 style={{ color: 'white', marginBottom: '24px' }}>Gerar Agendamentos</h2>
+            <form onSubmit={handleScheduleSubmit}>
+              <div className="form-group">
+                <label>Residência*</label>
+                <select required className="form-control" value={scheduleFormData.residencia_id} onChange={e => setScheduleFormData({ ...scheduleFormData, residencia_id: e.target.value, cuidadora_id: '' })}>
+                  <option value="">Selecione...</option>
+                  {residences.map(r => <option key={r.id} value={r.id}>{r.nome}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Prestador de Serviço*</label>
+                <select required className="form-control" value={scheduleFormData.cuidadora_id} onChange={e => setScheduleFormData({ ...scheduleFormData, cuidadora_id: e.target.value })} disabled={!scheduleFormData.residencia_id}>
+                  <option value="">Selecione...</option>
+                  {caregivers.filter(c => c.residencia_ids.includes(scheduleFormData.residencia_id)).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+              </div>
 
-               <div className="form-group">
-                 <label>Dias do Mês*</label>
-                 <select className="form-control" value={scheduleFormData.type} onChange={e=>setScheduleFormData({...scheduleFormData, type:e.target.value})}>
-                   <option value="impares">Todos os dias Ímpares</option>
-                   <option value="pares">Todos os dias Pares</option>
-                   <option value="especificos">Dias Específicos</option>
-                 </select>
-               </div>
+              <div className="form-group">
+                <label>Mês / Ano*</label>
+                <input type="month" required className="form-control" value={scheduleFormData.month} onChange={e => setScheduleFormData({ ...scheduleFormData, month: e.target.value })} />
+              </div>
 
-               {scheduleFormData.type === 'especificos' && (
-                 <div className="form-group">
-                   <label>Quais dias? (separe por vírgula)</label>
-                   <input required type="text" placeholder="Ex: 1, 3, 5, 20" className="form-control" value={scheduleFormData.specificDays} onChange={e=>setScheduleFormData({...scheduleFormData, specificDays:e.target.value})}/>
-                 </div>
-               )}
+              <div className="form-group">
+                <label>Dias do Mês*</label>
+                <select className="form-control" value={scheduleFormData.type} onChange={e => setScheduleFormData({ ...scheduleFormData, type: e.target.value })}>
+                  <option value="impares">Todos os dias Ímpares</option>
+                  <option value="pares">Todos os dias Pares</option>
+                  <option value="especificos">Dias Específicos</option>
+                </select>
+              </div>
 
-               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                 <div className="form-group">
-                   <label>Hora Início*</label>
-                   <input required type="time" className="form-control" value={scheduleFormData.hora_inicio} onChange={e=>setScheduleFormData({...scheduleFormData, hora_inicio:e.target.value})}/>
-                 </div>
-                 <div className="form-group">
-                   <label>Hora Término*</label>
-                   <input required type="time" className="form-control" value={scheduleFormData.hora_fim} onChange={e=>setScheduleFormData({...scheduleFormData, hora_fim:e.target.value})}/>
-                 </div>
-               </div>
-               <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>*Se a hora de término for menor que a de início (ex: 19h as 07h), o sistema considerará o término no dia seguinte automaticamente.</p>
+              {scheduleFormData.type === 'especificos' && (
+                <div className="form-group">
+                  <label>Quais dias? (separe por vírgula)</label>
+                  <input required type="text" placeholder="Ex: 1, 3, 5, 20" className="form-control" value={scheduleFormData.specificDays} onChange={e => setScheduleFormData({ ...scheduleFormData, specificDays: e.target.value })} />
+                </div>
+              )}
 
-               <div className="flex-gap" style={{justifyContent:'flex-end', marginTop:'32px'}}><button type="button" className="btn-secondary" onClick={()=>setIsScheduleModalOpen(false)}>Cancelar</button><button type="submit" className="btn-primary">Gerar Lote</button></div>
-             </form>
-           </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className="form-group">
+                  <label>Hora Início*</label>
+                  <input required type="time" className="form-control" value={scheduleFormData.hora_inicio} onChange={e => setScheduleFormData({ ...scheduleFormData, hora_inicio: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label>Hora Término*</label>
+                  <input required type="time" className="form-control" value={scheduleFormData.hora_fim} onChange={e => setScheduleFormData({ ...scheduleFormData, hora_fim: e.target.value })} />
+                </div>
+              </div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>*Se a hora de término for menor que a de início (ex: 19h as 07h), o sistema considerará o término no dia seguinte automaticamente.</p>
+
+              <div className="flex-gap" style={{ justifyContent: 'flex-end', marginTop: '32px' }}><button type="button" className="btn-secondary" onClick={() => setIsScheduleModalOpen(false)}>Cancelar</button><button type="submit" className="btn-primary">Gerar Lote</button></div>
+            </form>
+          </div>
         </div>
       )}
 
       {/* MODAL: EDIT SINGLE SCHEDULE */}
       {isEditScheduleModalOpen && (
         <div className="modal-overlay" onClick={() => setIsEditScheduleModalOpen(false)}>
-           <div className="modal-content" onClick={e=>e.stopPropagation()}>
-             <h2 style={{color:'white', marginBottom:'24px'}}>Editar Plantão Específico</h2>
-             <form onSubmit={handleEditScheduleSubmit}>
-               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div className="form-group">
-                    <label>Data Início*</label>
-                    <input required type="date" className="form-control" value={editScheduleData.data_inicio} onChange={e=>setEditScheduleData({...editScheduleData, data_inicio:e.target.value})}/>
-                  </div>
-                  <div className="form-group">
-                    <label>Hora Início*</label>
-                    <input required type="time" className="form-control" value={editScheduleData.hora_inicio} onChange={e=>setEditScheduleData({...editScheduleData, hora_inicio:e.target.value})}/>
-                  </div>
-               </div>
-               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '16px' }}>
-                  <div className="form-group">
-                    <label>Data Fim*</label>
-                    <input required type="date" className="form-control" value={editScheduleData.data_fim} onChange={e=>setEditScheduleData({...editScheduleData, data_fim:e.target.value})}/>
-                  </div>
-                  <div className="form-group">
-                    <label>Hora Fim*</label>
-                    <input required type="time" className="form-control" value={editScheduleData.hora_fim} onChange={e=>setEditScheduleData({...editScheduleData, hora_fim:e.target.value})}/>
-                  </div>
-               </div>
-               <div className="flex-gap" style={{justifyContent:'flex-end', marginTop:'32px'}}><button type="button" className="btn-secondary" onClick={()=>setIsEditScheduleModalOpen(false)}>Cancelar</button><button type="submit" className="btn-primary">Salvar Edição</button></div>
-             </form>
-           </div>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <h2 style={{ color: 'white', marginBottom: '24px' }}>Editar Plantão Específico</h2>
+            <form onSubmit={handleEditScheduleSubmit}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className="form-group">
+                  <label>Data Início*</label>
+                  <input required type="date" className="form-control" value={editScheduleData.data_inicio} onChange={e => setEditScheduleData({ ...editScheduleData, data_inicio: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label>Hora Início*</label>
+                  <input required type="time" className="form-control" value={editScheduleData.hora_inicio} onChange={e => setEditScheduleData({ ...editScheduleData, hora_inicio: e.target.value })} />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '16px' }}>
+                <div className="form-group">
+                  <label>Data Fim*</label>
+                  <input required type="date" className="form-control" value={editScheduleData.data_fim} onChange={e => setEditScheduleData({ ...editScheduleData, data_fim: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label>Hora Fim*</label>
+                  <input required type="time" className="form-control" value={editScheduleData.hora_fim} onChange={e => setEditScheduleData({ ...editScheduleData, hora_fim: e.target.value })} />
+                </div>
+              </div>
+              <div className="flex-gap" style={{ justifyContent: 'flex-end', marginTop: '32px' }}><button type="button" className="btn-secondary" onClick={() => setIsEditScheduleModalOpen(false)}>Cancelar</button><button type="submit" className="btn-primary">Salvar Edição</button></div>
+            </form>
+          </div>
         </div>
       )}
     </div>

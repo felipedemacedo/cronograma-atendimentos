@@ -81,8 +81,12 @@ app.get('/api/caregivers', (req, res) => {
       if (err) return res.status(500).json({ error: err.message });
       
       const cuidadorasComResidencias = cuidadoras.map(c => {
-        const suasResidencias = rels.filter(r => r.cuidadora_id === c.id).map(r => r.residencia_id);
-        return { ...c, residencia_ids: suasResidencias };
+        const suasResidencias = rels.filter(r => r.cuidadora_id === c.id);
+        return { 
+          ...c, 
+          residencia_ids: suasResidencias.map(r => r.residencia_id),
+          residencias_config: suasResidencias.map(r => ({ id: r.residencia_id, valor_transporte: r.valor_transporte }))
+        };
       });
       res.json(cuidadorasComResidencias);
     });
@@ -91,7 +95,7 @@ app.get('/api/caregivers', (req, res) => {
 
 // Criar cuidadora
 app.post('/api/caregivers', (req, res) => {
-  const { nome, residencia_ids, valor_hora } = req.body;
+  const { nome, residencia_ids, residencias_config, valor_hora } = req.body;
   if (!nome) return res.status(400).json({ error: 'Nome é obrigatório' });
   
   const id = uuidv4();
@@ -101,13 +105,15 @@ app.post('/api/caregivers', (req, res) => {
     db.run('BEGIN TRANSACTION');
     try {
       db.run('INSERT INTO cuidadoras (id, nome, valor_hora) VALUES (?, ?, ?)', [id, nome, vHora]);
-      if (residencia_ids && residencia_ids.length > 0) {
-        const stmt = db.prepare('INSERT INTO cuidadora_residencia (cuidadora_id, residencia_id) VALUES (?, ?)');
-        residencia_ids.forEach(rId => stmt.run(id, rId));
+      
+      const configs = residencias_config || (residencia_ids || []).map(rId => ({ id: rId, valor_transporte: 9 }));
+      if (configs.length > 0) {
+        const stmt = db.prepare('INSERT INTO cuidadora_residencia (cuidadora_id, residencia_id, valor_transporte) VALUES (?, ?, ?)');
+        configs.forEach(r => stmt.run(id, r.id, r.valor_transporte !== undefined && r.valor_transporte !== '' ? r.valor_transporte : 9));
         stmt.finalize();
       }
       db.run('COMMIT');
-      res.status(201).json({ id, nome, valor_hora: vHora, residencia_ids: residencia_ids || [] });
+      res.status(201).json({ id, nome, valor_hora: vHora, residencia_ids: configs.map(c => c.id), residencias_config: configs });
     } catch (error) {
       db.run('ROLLBACK');
       res.status(500).json({ error: error.message });
@@ -118,7 +124,7 @@ app.post('/api/caregivers', (req, res) => {
 // Atualizar cuidadora
 app.put('/api/caregivers/:id', (req, res) => {
   const { id } = req.params;
-  const { nome, residencia_ids, valor_hora } = req.body;
+  const { nome, residencia_ids, residencias_config, valor_hora } = req.body;
   const vHora = valor_hora !== undefined && valor_hora !== '' ? valor_hora : null;
 
   db.serialize(() => {
@@ -127,14 +133,15 @@ app.put('/api/caregivers/:id', (req, res) => {
       db.run('UPDATE cuidadoras SET nome = ?, valor_hora = ? WHERE id = ?', [nome, vHora, id]);
       db.run('DELETE FROM cuidadora_residencia WHERE cuidadora_id = ?', id);
       
-      if (residencia_ids && residencia_ids.length > 0) {
-        const stmt = db.prepare('INSERT INTO cuidadora_residencia (cuidadora_id, residencia_id) VALUES (?, ?)');
-        residencia_ids.forEach(rId => stmt.run(id, rId));
+      const configs = residencias_config || (residencia_ids || []).map(rId => ({ id: rId, valor_transporte: 9 }));
+      if (configs.length > 0) {
+        const stmt = db.prepare('INSERT INTO cuidadora_residencia (cuidadora_id, residencia_id, valor_transporte) VALUES (?, ?, ?)');
+        configs.forEach(r => stmt.run(id, r.id, r.valor_transporte !== undefined && r.valor_transporte !== '' ? r.valor_transporte : 9));
         stmt.finalize();
       }
       
       db.run('COMMIT');
-      res.json({ id, nome, valor_hora: vHora, residencia_ids: residencia_ids || [] });
+      res.json({ id, nome, valor_hora: vHora, residencia_ids: configs.map(c => c.id), residencias_config: configs });
     } catch (error) {
       db.run('ROLLBACK');
       res.status(500).json({ error: error.message });
@@ -165,10 +172,12 @@ app.get('/api/schedules', (req, res) => {
            r.adicional_noturno as residencia_adicional_noturno,
            r.percentual_noturno as residencia_percentual_noturno,
            c.nome as cuidadora_nome,
-           c.valor_hora as cuidadora_valor_hora
+           c.valor_hora as cuidadora_valor_hora,
+           COALESCE(cr.valor_transporte, 9) as valor_transporte
     FROM agendamentos a
     JOIN residencias r ON a.residencia_id = r.id
     JOIN cuidadoras c ON a.cuidadora_id = c.id
+    LEFT JOIN cuidadora_residencia cr ON a.cuidadora_id = cr.cuidadora_id AND a.residencia_id = cr.residencia_id
     ORDER BY a.data_inicio ASC, a.hora_inicio ASC
   `;
   db.all(query, [], (err, rows) => {

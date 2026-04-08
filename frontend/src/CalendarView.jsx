@@ -26,7 +26,7 @@ const getDayOfWeek = (year, month, day) => {
   return days[new Date(year, month - 1, day).getDay()];
 };
 
-export default function CalendarView({ schedules, residences, selectedMonth, setSelectedMonth, selectedResidencia, setSelectedResidencia, onEditSchedule }) {
+export default function CalendarView({ schedules, residences, selectedMonth, setSelectedMonth, selectedResidencia, setSelectedResidencia, onEditSchedule, onDeleteSchedule }) {
   const visualData = useMemo(() => {
     if (!selectedMonth || !selectedResidencia) return null;
     
@@ -228,7 +228,36 @@ export default function CalendarView({ schedules, residences, selectedMonth, set
                         }}
                         title={`${block.name} (${String(Math.floor(block.start)).padStart(2,'0')}:00 - ${String(Math.floor(block.end)).padStart(2,'0')}:00) - Clique para editar`}
                       >
-                        {widthPerc > 5 && block.name}
+                        <span style={{flexGrow: 1, overflow: 'hidden', textOverflow: 'ellipsis', marginRight: '16px'}}>
+                          {widthPerc > 5 && block.name}
+                        </span>
+                        
+                        <div 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm('Excluir este plantão?')) {
+                              if (onDeleteSchedule) onDeleteSchedule(block.original.id);
+                            }
+                          }}
+                          style={{
+                            position: 'absolute',
+                            right: '4px',
+                            width: '16px',
+                            height: '16px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: 'rgba(0,0,0,0.2)',
+                            borderRadius: '50%',
+                            color: 'white',
+                            lineHeight: '1',
+                            fontSize: '10px',
+                            cursor: 'pointer'
+                          }}
+                          title="Excluir Plantão"
+                        >
+                          ✕
+                        </div>
                       </div>
                     );
                   })}

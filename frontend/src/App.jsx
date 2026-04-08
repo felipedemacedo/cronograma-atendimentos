@@ -288,6 +288,7 @@ function App() {
           selectedResidencia={viewResidencia}
           setSelectedResidencia={setViewResidencia}
           onEditSchedule={(s) => { setEditScheduleData(s); setIsEditScheduleModalOpen(true); }}
+          onDeleteSchedule={handleSingleScheduleDelete}
         />
       ) : activeTab === 'schedules' ? (
         <>

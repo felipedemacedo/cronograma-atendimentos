@@ -375,14 +375,14 @@ function App() {
 
       {/* MODAL: RESIDENCE EDIT/CREATE */}
       {isResidenceModalOpen && (
-        <div className="modal-overlay" onClick={handleCloseResidenceModal}>
+        <div className="modal-overlay" onClick={() => setIsResidenceModalOpen(false)}>
            {/* ... UI igual ... */}
            <div className="modal-content" onClick={e=>e.stopPropagation()}>
              <h2 style={{color:'white', marginBottom:'24px'}}>{currentResidence?'Editar Residência':'Nova Residência'}</h2>
              <form onSubmit={handleResidenceSubmit}>
                <div className="form-group"><label>Nome*</label><input required className="form-control" value={residenceFormData.nome} onChange={e=>setResidenceFormData({...residenceFormData, nome:e.target.value})}/></div>
                <div className="form-group"><label>Endereço</label><input className="form-control" value={residenceFormData.endereco} onChange={e=>setResidenceFormData({...residenceFormData, endereco:e.target.value})}/></div>
-               <div className="flex-gap" style={{justifyContent:'flex-end', marginTop:'32px'}}><button type="button" className="btn-secondary" onClick={handleCloseResidenceModal}>Cancelar</button><button type="submit" className="btn-primary">Salvar</button></div>
+               <div className="flex-gap" style={{justifyContent:'flex-end', marginTop:'32px'}}><button type="button" className="btn-secondary" onClick={() => setIsResidenceModalOpen(false)}>Cancelar</button><button type="submit" className="btn-primary">Salvar</button></div>
              </form>
            </div>
         </div>
@@ -390,7 +390,7 @@ function App() {
 
       {/* MODAL: CAREGIVER EDIT/CREATE */}
       {isCaregiverModalOpen && (
-        <div className="modal-overlay" onClick={handleCloseCaregiverModal}>
+        <div className="modal-overlay" onClick={() => setIsCaregiverModalOpen(false)}>
            <div className="modal-content" onClick={e=>e.stopPropagation()}>
              <h2 style={{color:'white', marginBottom:'24px'}}>{currentCaregiver?'Editar Cuidadora':'Nova Cuidadora'}</h2>
              <form onSubmit={handleCaregiverSubmit}>
@@ -405,7 +405,7 @@ function App() {
                     ))}
                   </div>
                </div>
-               <div className="flex-gap" style={{justifyContent:'flex-end', marginTop:'32px'}}><button type="button" className="btn-secondary" onClick={handleCloseCaregiverModal}>Cancelar</button><button type="submit" className="btn-primary">Salvar</button></div>
+               <div className="flex-gap" style={{justifyContent:'flex-end', marginTop:'32px'}}><button type="button" className="btn-secondary" onClick={() => setIsCaregiverModalOpen(false)}>Cancelar</button><button type="submit" className="btn-primary">Salvar</button></div>
              </form>
            </div>
         </div>

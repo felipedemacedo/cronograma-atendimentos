@@ -230,6 +230,42 @@ body {
   gap: 12px;
 }
 
+.incremental-loader {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 64px;
+  height: 64px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.32);
+  z-index: 40;
+  pointer-events: none;
+  animation: fadeIn 0.18s ease-out;
+}
+
+.incremental-loader__spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 3px solid rgba(255, 255, 255, 0.16);
+  border-top-color: var(--primary);
+  border-right-color: var(--success);
+  animation: spinLoader 0.8s linear infinite;
+}
+
+@keyframes spinLoader {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

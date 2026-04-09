@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, startTransition } from 'react';
 import { Plus, Home, MapPin, Edit2, Trash2, Users, UserCheck, CalendarDays, Clock, MonitorPlay, DollarSign, CalendarHeart, Calendar } from 'lucide-react';
 import api from './api';
 import CalendarView from './CalendarView';
@@ -8,6 +8,9 @@ import LoginView from './LoginView';
 import UsersView from './UsersView';
 
 function App() {
+  const INITIAL_SCHEDULE_BATCH = 24;
+  const SCHEDULE_BATCH_STEP = 18;
+
   const [currentUser, setCurrentUser] = useState(() => {
     const stored = localStorage.getItem('session');
     if (stored) {
@@ -75,6 +78,9 @@ function App() {
   const [filterSchedResidencia, setFilterSchedResidencia] = useState('');
   const [filterSchedCaregiver, setFilterSchedCaregiver] = useState('');
 
+  const [loadedCount, setLoadedCount] = useState(INITIAL_SCHEDULE_BATCH);
+  const [isSchedulesIncrementLoading, setIsSchedulesIncrementLoading] = useState(false);
+
   const handleSetFilterSchedResidencia = (val) => {
     setFilterSchedResidencia(val);
     if (val && !filterSchedMonth) {
@@ -120,6 +126,11 @@ function App() {
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    setLoadedCount(INITIAL_SCHEDULE_BATCH);
+    setIsSchedulesIncrementLoading(false);
+  }, [filterSchedMonth, filterSchedResidencia, filterSchedCaregiver]);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -339,12 +350,99 @@ function App() {
     return `${parts[2]}/${parts[1]}/${parts[0]}`;
   };
 
-  const filteredSchedulesList = schedules.filter(s => {
-    if (filterSchedMonth && !s.data_inicio.startsWith(filterSchedMonth)) return false;
-    if (filterSchedResidencia && s.residencia_id !== filterSchedResidencia) return false;
-    if (filterSchedCaregiver && s.cuidadora_id !== filterSchedCaregiver) return false;
-    return true;
-  });
+  const filteredSchedulesList = useMemo(() => (
+    schedules.filter(s => {
+      if (filterSchedMonth && !s.data_inicio.startsWith(filterSchedMonth)) return false;
+      if (filterSchedResidencia && s.residencia_id !== filterSchedResidencia) return false;
+      if (filterSchedCaregiver && s.cuidadora_id !== filterSchedCaregiver) return false;
+      return true;
+    })
+  ), [schedules, filterSchedMonth, filterSchedResidencia, filterSchedCaregiver]);
+
+  const displayedSchedules = useMemo(
+    () => filteredSchedulesList.slice(0, loadedCount),
+    [filteredSchedulesList, loadedCount]
+  );
+
+  const selectedScheduleIds = useMemo(
+    () => new Set(selectedSchedules),
+    [selectedSchedules]
+  );
+
+  const lastItemRef = useRef(null);
+  const pendingLoadRef = useRef(null);
+
+  const loadMore = useCallback(() => {
+    if (pendingLoadRef.current || loadedCount >= filteredSchedulesList.length) {
+      return;
+    }
+
+    setIsSchedulesIncrementLoading(true);
+    pendingLoadRef.current = window.requestAnimationFrame(() => {
+      pendingLoadRef.current = null;
+      startTransition(() => {
+        setLoadedCount(prev => Math.min(prev + SCHEDULE_BATCH_STEP, filteredSchedulesList.length));
+      });
+    });
+  }, [filteredSchedulesList.length, loadedCount]);
+
+  useEffect(() => {
+    if (!isSchedulesIncrementLoading) {
+      return;
+    }
+
+    if (displayedSchedules.length >= loadedCount || displayedSchedules.length >= filteredSchedulesList.length) {
+      const timeoutId = window.setTimeout(() => {
+        setIsSchedulesIncrementLoading(false);
+      }, 120);
+
+      return () => window.clearTimeout(timeoutId);
+    }
+  }, [displayedSchedules.length, filteredSchedulesList.length, isSchedulesIncrementLoading, loadedCount]);
+
+  useEffect(() => {
+    if (activeTab !== 'schedules' || displayedSchedules.length === 0 || displayedSchedules.length >= filteredSchedulesList.length) {
+      return;
+    }
+
+    const node = lastItemRef.current;
+    if (!node) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          observer.unobserve(entries[0].target);
+          loadMore();
+        }
+      },
+      {
+        rootMargin: '0px 0px 160px 0px',
+        threshold: 0
+      }
+    );
+
+    observer.observe(node);
+
+    // Revalida após a aba montar para não depender de outra interação do usuário.
+    const timeoutId = window.setTimeout(() => {
+      const rect = node.getBoundingClientRect();
+      if (rect.top < window.innerHeight + 160 && displayedSchedules.length < filteredSchedulesList.length) {
+        loadMore();
+      }
+    }, 100);
+
+    return () => {
+      if (pendingLoadRef.current) {
+        window.cancelAnimationFrame(pendingLoadRef.current);
+        pendingLoadRef.current = null;
+      }
+      window.clearTimeout(timeoutId);
+      observer.unobserve(node);
+      observer.disconnect();
+    };
+  }, [activeTab, displayedSchedules.length, filteredSchedulesList.length, loadMore]);
 
   if (!currentUser && !caregiverMode && !new URLSearchParams(window.location.search).get('caregiver_id')) {
     return <LoginView onLogin={handleLogin} />;
@@ -481,6 +579,11 @@ function App() {
         />
       ) : activeTab === 'schedules' && !isVisualizador ? (
         <>
+          {isSchedulesIncrementLoading && (
+            <div className="incremental-loader" aria-live="polite" aria-label="Carregando mais atendimentos">
+              <div className="incremental-loader__spinner" />
+            </div>
+          )}
           <div className="flex-between" style={{ marginBottom: '16px' }}>
             <h2 style={{ color: 'white' }}>Agenda de Atendimentos</h2>
             <div className="flex-gap">
@@ -547,19 +650,25 @@ function App() {
           </div>
 
           <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))' }}>
-            {filteredSchedulesList.length === 0 ? (
+            {displayedSchedules.length === 0 ? (
               <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
                 <CalendarDays size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
                 <h3>Nenhum agendamento encontrado</h3>
               </div>
             ) : (
-              filteredSchedulesList.map(s => (
-                <div key={s.id} onClick={() => toggleScheduleSelection(s.id)} className="card" style={{ padding: '20px', cursor: 'pointer', border: selectedSchedules.includes(s.id) ? '2px solid var(--primary)' : '1px solid var(--border)', transition: 'all 0.2s', background: selectedSchedules.includes(s.id) ? 'rgba(99, 102, 241, 0.05)' : 'var(--bg-card)' }}>
+              displayedSchedules.map((s, index) => (
+                <div 
+                  key={s.id} 
+                  ref={index === displayedSchedules.length - 1 ? lastItemRef : null}
+                  onClick={() => toggleScheduleSelection(s.id)} 
+                  className="card" 
+                  style={{ padding: '20px', cursor: 'pointer', border: selectedScheduleIds.has(s.id) ? '2px solid var(--primary)' : '1px solid var(--border)', transition: 'all 0.2s', background: selectedScheduleIds.has(s.id) ? 'rgba(99, 102, 241, 0.05)' : 'var(--bg-card)' }}
+                >
                   <div className="flex-between" style={{ marginBottom: '12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <input
                         type="checkbox"
-                        checked={selectedSchedules.includes(s.id)}
+                        checked={selectedScheduleIds.has(s.id)}
                         onChange={(e) => { e.stopPropagation(); toggleScheduleSelection(s.id); }}
                         style={{ width: '18px', height: '18px', accentColor: 'var(--primary)', cursor: 'pointer' }}
                       />

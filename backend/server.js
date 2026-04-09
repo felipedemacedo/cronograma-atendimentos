@@ -315,6 +315,64 @@ app.delete('/api/holidays/:id', (req, res) => {
   });
 });
 
+// --------------------------------------------------------------------
+// Usuarios / Auth API
+// --------------------------------------------------------------------
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+  db.get('SELECT id, username, role, residencia_ids FROM usuarios WHERE username = ? AND password = ?', [username, password], (err, user) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!user) return res.status(401).json({ error: 'Credenciais inválidas' });
+    user.residencia_ids = JSON.parse(user.residencia_ids || '[]');
+    res.json(user);
+  });
+});
+
+app.get('/api/users', (req, res) => {
+  db.all('SELECT id, username, role, residencia_ids FROM usuarios', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows.map(r => ({ ...r, residencia_ids: JSON.parse(r.residencia_ids || '[]') })));
+  });
+});
+
+app.post('/api/users', (req, res) => {
+  const { username, password, role, residencia_ids } = req.body;
+  if (!username || !password || !role) return res.status(400).json({ error: 'Faltam dados' });
+  const id = uuidv4();
+  db.run('INSERT INTO usuarios (id, username, password, role, residencia_ids) VALUES (?, ?, ?, ?, ?)', 
+    [id, username, password, role, JSON.stringify(residencia_ids || [])], 
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.status(201).json({ id, username, role, residencia_ids });
+    }
+  );
+});
+
+app.put('/api/users/:id', (req, res) => {
+  const { username, password, role, residencia_ids } = req.body;
+  const residenciasJson = JSON.stringify(residencia_ids || []);
+  if (password) { // Update with password
+    db.run('UPDATE usuarios SET username = ?, password = ?, role = ?, residencia_ids = ? WHERE id = ?', 
+      [username, password, role, residenciasJson, req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Atualizado com sucesso' });
+    });
+  } else { // Update without password
+    db.run('UPDATE usuarios SET username = ?, role = ?, residencia_ids = ? WHERE id = ?', 
+      [username, role, residenciasJson, req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Atualizado com sucesso' });
+    });
+  }
+});
+
+app.delete('/api/users/:id', (req, res) => {
+  db.run('DELETE FROM usuarios WHERE id = ?', req.params.id, function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ message: 'Apagado' });
+  });
+});
+
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);

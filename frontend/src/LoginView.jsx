@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import api from './api';
 
 export default function LoginView({ onLogin }) {
   const [username, setUsername] = useState('');
@@ -8,16 +9,11 @@ export default function LoginView({ onLogin }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:3000/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-      if (!res.ok) throw new Error('Credenciais inválidas');
-      const user = await res.json();
+      const res = await api.post('/login', { username, password });
+      const user = res.data;
       onLogin(user);
     } catch (err) {
-      setError(err.message);
+      setError(err?.response?.data?.error || err.message);
     }
   };
 

@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit2, ShieldAlert } from 'lucide-react';
-import axios from 'axios';
-
-const api = axios.create({ baseURL: 'http://localhost:3000/api' });
+import api from './api';
 
 export default function UsersView({ residences, caregivers, currentUser }) {
   const [users, setUsers] = useState([]);

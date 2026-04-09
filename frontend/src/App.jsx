@@ -11,8 +11,12 @@ function App() {
   const [currentUser, setCurrentUser] = useState(() => {
     const stored = localStorage.getItem('session');
     if (stored) {
-      const session = JSON.parse(stored);
-      if (Date.now() - session.timestamp < 60 * 60 * 1000) return session.user;
+      try {
+        const session = JSON.parse(stored);
+        if (Date.now() - session.timestamp < 60 * 60 * 1000) return session.user;
+      } catch (error) {
+        localStorage.removeItem('session');
+      }
     }
     return null;
   });

@@ -660,8 +660,24 @@ function App() {
       {isEditScheduleModalOpen && (
         <div className="modal-overlay" onClick={() => setIsEditScheduleModalOpen(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <h2 style={{ color: 'white', marginBottom: '24px' }}>Editar Plantão Específico</h2>
+            <h2 style={{ color: 'white', marginBottom: '24px' }}>
+              Editar Plantão Específico <span style={{ color: 'var(--text-muted)', fontSize: '1rem' }}>#{editScheduleData?.id?.substring(0, 8)}</span>
+            </h2>
             <form onSubmit={handleEditScheduleSubmit}>
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label>Prestador de Serviço*</label>
+                <select 
+                  required 
+                  className="form-control" 
+                  value={editScheduleData.cuidadora_id || ''} 
+                  onChange={e => setEditScheduleData({ ...editScheduleData, cuidadora_id: e.target.value })}
+                >
+                  <option value="">Selecione...</option>
+                  {caregivers.filter(c => c.residencia_ids?.includes(editScheduleData.residencia_id)).map(c => (
+                    <option key={c.id} value={c.id}>{c.nome}</option>
+                  ))}
+                </select>
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div className="form-group">
                   <label>Data Início*</label>

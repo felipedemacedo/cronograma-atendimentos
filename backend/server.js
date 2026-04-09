@@ -234,13 +234,13 @@ app.post('/api/schedules/batch', (req, res) => {
 // Editar um agendamento específico
 app.put('/api/schedules/:id', (req, res) => {
   const { id } = req.params;
-  const { data_inicio, hora_inicio, data_fim, hora_fim } = req.body;
+  const { data_inicio, hora_inicio, data_fim, hora_fim, cuidadora_id } = req.body;
 
   db.run(`
     UPDATE agendamentos 
-    SET data_inicio = ?, hora_inicio = ?, data_fim = ?, hora_fim = ? 
+    SET data_inicio = ?, hora_inicio = ?, data_fim = ?, hora_fim = ?, cuidadora_id = ?
     WHERE id = ?`,
-    [data_inicio, hora_inicio, data_fim, hora_fim, id],
+    [data_inicio, hora_inicio, data_fim, hora_fim, cuidadora_id, id],
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
       if (this.changes === 0) return res.status(404).json({ error: 'Agendamento não encontrado' });

@@ -55,6 +55,17 @@ function App() {
   const [viewMonth, setViewMonth] = useState(defaultMonth);
   const [viewResidencia, setViewResidencia] = useState('');
 
+  const [filterSchedMonth, setFilterSchedMonth] = useState('');
+  const [filterSchedResidencia, setFilterSchedResidencia] = useState('');
+  const [filterSchedCaregiver, setFilterSchedCaregiver] = useState('');
+
+  const handleSetFilterSchedResidencia = (val) => {
+    setFilterSchedResidencia(val);
+    if (val && !filterSchedMonth) {
+      setFilterSchedMonth(defaultMonth);
+    }
+  };
+
   // Fetch logic
   const fetchData = async () => {
     try {
@@ -265,6 +276,13 @@ function App() {
     return `${parts[2]}/${parts[1]}/${parts[0]}`;
   };
 
+  const filteredSchedulesList = schedules.filter(s => {
+    if (filterSchedMonth && !s.data_inicio.startsWith(filterSchedMonth)) return false;
+    if (filterSchedResidencia && s.residencia_id !== filterSchedResidencia) return false;
+    if (filterSchedCaregiver && s.cuidadora_id !== filterSchedCaregiver) return false;
+    return true;
+  });
+
   return (
     <div className="container">
       <header className="header" style={{ marginBottom: '24px' }}>
@@ -326,7 +344,7 @@ function App() {
         />
       ) : activeTab === 'schedules' ? (
         <>
-          <div className="flex-between" style={{ marginBottom: '24px' }}>
+          <div className="flex-between" style={{ marginBottom: '16px' }}>
             <h2 style={{ color: 'white' }}>Agenda de Atendimentos</h2>
             <div className="flex-gap">
               {selectedSchedules.length > 0 ? (
@@ -350,14 +368,49 @@ function App() {
               )}
             </div>
           </div>
+
+          <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap' }}>
+            <div className="form-group" style={{ marginBottom: 0, flex: 1, minWidth: '200px' }}>
+              <label>Filtro: Mês</label>
+              <input 
+                type="month" 
+                className="form-control" 
+                value={filterSchedMonth} 
+                onChange={(e) => setFilterSchedMonth(e.target.value)} 
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0, flex: 1, minWidth: '200px' }}>
+              <label>Filtro: Residência</label>
+              <select 
+                className="form-control" 
+                value={filterSchedResidencia} 
+                onChange={(e) => handleSetFilterSchedResidencia(e.target.value)}
+              >
+                <option value="">Todas</option>
+                {residences.map(r => <option key={r.id} value={r.id}>{r.nome}</option>)}
+              </select>
+            </div>
+            <div className="form-group" style={{ marginBottom: 0, flex: 1, minWidth: '200px' }}>
+              <label>Filtro: Prestador</label>
+              <select 
+                className="form-control" 
+                value={filterSchedCaregiver} 
+                onChange={(e) => setFilterSchedCaregiver(e.target.value)}
+              >
+                <option value="">Todos</option>
+                {caregivers.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              </select>
+            </div>
+          </div>
+
           <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))' }}>
-            {schedules.length === 0 ? (
+            {filteredSchedulesList.length === 0 ? (
               <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
                 <CalendarDays size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
                 <h3>Nenhum agendamento encontrado</h3>
               </div>
             ) : (
-              schedules.map(s => (
+              filteredSchedulesList.map(s => (
                 <div key={s.id} onClick={() => toggleScheduleSelection(s.id)} className="card" style={{ padding: '20px', cursor: 'pointer', border: selectedSchedules.includes(s.id) ? '2px solid var(--primary)' : '1px solid var(--border)', transition: 'all 0.2s', background: selectedSchedules.includes(s.id) ? 'rgba(99, 102, 241, 0.05)' : 'var(--bg-card)' }}>
                   <div className="flex-between" style={{ marginBottom: '12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

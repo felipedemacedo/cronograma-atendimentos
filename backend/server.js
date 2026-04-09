@@ -88,6 +88,112 @@ async function replaceCaregiverResidences(client, caregiverId, configs) {
   }
 }
 
+function getScheduleConflictMessage(residenceName) {
+  return `Prestador ja esta associado a outro atendimento para horario conflitante com este na residencia ${residenceName}`;
+}
+
+function schedulesOverlap(firstSchedule, secondSchedule) {
+  const firstStart = new Date(`${firstSchedule.data_inicio}T${firstSchedule.hora_inicio}:00`);
+  const firstEnd = new Date(`${firstSchedule.data_fim}T${firstSchedule.hora_fim}:00`);
+  const secondStart = new Date(`${secondSchedule.data_inicio}T${secondSchedule.hora_inicio}:00`);
+  const secondEnd = new Date(`${secondSchedule.data_fim}T${secondSchedule.hora_fim}:00`);
+
+  return firstStart < secondEnd && firstEnd > secondStart;
+}
+
+async function findScheduleConflict(client, schedule, options = {}) {
+  const { excludeId } = options;
+  const result = await client.query(
+    `
+      SELECT a.id, a.residencia_id
+      FROM agendamentos a
+      WHERE a.cuidadora_id = $1
+        AND ($2::text IS NULL OR a.id <> $2)
+        AND CAST(a.data_inicio || ' ' || a.hora_inicio AS timestamp) < CAST($3 || ' ' || $4 AS timestamp)
+        AND CAST(a.data_fim || ' ' || a.hora_fim AS timestamp) > CAST($5 || ' ' || $6 AS timestamp)
+      ORDER BY a.data_inicio ASC, a.hora_inicio ASC
+      LIMIT 1
+    `,
+    [
+      schedule.cuidadora_id,
+      excludeId || null,
+      schedule.data_fim,
+      schedule.hora_fim,
+      schedule.data_inicio,
+      schedule.hora_inicio,
+    ]
+  );
+
+  return result.rows[0] || null;
+}
+
+async function getResidenceNamesByIds(client, residenceIds) {
+  if (!Array.isArray(residenceIds) || residenceIds.length === 0) {
+    return new Map();
+  }
+
+  const result = await client.query(
+    'SELECT id, nome FROM residencias WHERE id = ANY($1::text[])',
+    [Array.from(new Set(residenceIds))]
+  );
+
+  return new Map(result.rows.map((row) => [row.id, row.nome]));
+}
+
+async function getResidenceName(client, residenceId, residenceNames = new Map()) {
+  if (!residenceId) {
+    return 'desconhecida';
+  }
+
+  if (residenceNames.has(residenceId)) {
+    return residenceNames.get(residenceId);
+  }
+
+  const result = await client.query(
+    'SELECT nome FROM residencias WHERE id = $1 LIMIT 1',
+    [residenceId]
+  );
+
+  return result.rows[0]?.nome || 'desconhecida';
+}
+
+async function validateScheduleConflicts(client, schedules, options = {}) {
+  const { excludeId } = options;
+  const residenceNames = await getResidenceNamesByIds(client, schedules.map((schedule) => schedule.residencia_id));
+
+  for (let index = 0; index < schedules.length; index += 1) {
+    const currentSchedule = schedules[index];
+
+    for (let compareIndex = 0; compareIndex < index; compareIndex += 1) {
+      const comparedSchedule = schedules[compareIndex];
+      if (
+        currentSchedule.cuidadora_id === comparedSchedule.cuidadora_id &&
+        schedulesOverlap(currentSchedule, comparedSchedule)
+      ) {
+        return {
+          message: getScheduleConflictMessage(
+            await getResidenceName(client, comparedSchedule.residencia_id, residenceNames)
+          ),
+        };
+      }
+    }
+
+    const conflict = await findScheduleConflict(client, currentSchedule, {
+      excludeId: schedules.length === 1 ? excludeId : undefined,
+    });
+
+    if (conflict) {
+      return {
+        message: getScheduleConflictMessage(
+          await getResidenceName(client, conflict.residencia_id, residenceNames)
+        ),
+      };
+    }
+  }
+
+  return null;
+}
+
 app.get('/api/residences', asyncHandler(async (_req, res) => {
   const result = await db.query('SELECT * FROM residencias ORDER BY nome ASC');
   res.json(result.rows);
@@ -319,6 +425,12 @@ app.post('/api/schedules/batch', asyncHandler(async (req, res) => {
 
   try {
     await client.query('BEGIN');
+    const conflict = await validateScheduleConflicts(client, schedules);
+    if (conflict) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: conflict.message });
+    }
+
     for (const schedule of schedules) {
       await client.query(
         `
@@ -349,22 +461,59 @@ app.post('/api/schedules/batch', asyncHandler(async (req, res) => {
 }));
 
 app.put('/api/schedules/:id', asyncHandler(async (req, res) => {
-  const { data_inicio, hora_inicio, data_fim, hora_fim, cuidadora_id } = req.body;
+  const { data_inicio, hora_inicio, data_fim, hora_fim, cuidadora_id, residencia_id } = req.body;
+  const client = await db.getClient();
 
-  const result = await db.query(
-    `
-      UPDATE agendamentos
-      SET data_inicio = $1, hora_inicio = $2, data_fim = $3, hora_fim = $4, cuidadora_id = $5
-      WHERE id = $6
-    `,
-    [data_inicio, hora_inicio, data_fim, hora_fim, cuidadora_id, req.params.id]
-  );
+  try {
+    await client.query('BEGIN');
 
-  if (result.rowCount === 0) {
-    return res.status(404).json({ error: 'Agendamento nao encontrado' });
+    const existingScheduleResult = await client.query(
+      'SELECT residencia_id FROM agendamentos WHERE id = $1 LIMIT 1',
+      [req.params.id]
+    );
+
+    const existingSchedule = existingScheduleResult.rows[0];
+    if (!existingSchedule) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Agendamento nao encontrado' });
+    }
+
+    const conflict = await validateScheduleConflicts(
+      client,
+      [{
+        residencia_id: residencia_id || existingSchedule.residencia_id,
+        cuidadora_id,
+        data_inicio,
+        hora_inicio,
+        data_fim,
+        hora_fim,
+      }],
+      { excludeId: req.params.id }
+    );
+
+    if (conflict) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: conflict.message });
+    }
+
+    await client.query(
+      `
+        UPDATE agendamentos
+        SET data_inicio = $1, hora_inicio = $2, data_fim = $3, hora_fim = $4, cuidadora_id = $5
+        WHERE id = $6
+      `,
+      [data_inicio, hora_inicio, data_fim, hora_fim, cuidadora_id, req.params.id]
+    );
+
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
   }
 
-  res.json({ id: req.params.id, data_inicio, hora_inicio, data_fim, hora_fim, cuidadora_id });
+  res.json({ id: req.params.id, data_inicio, hora_inicio, data_fim, hora_fim, cuidadora_id, residencia_id });
 }));
 
 app.delete('/api/schedules/batch', asyncHandler(async (req, res) => {

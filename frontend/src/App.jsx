@@ -235,6 +235,10 @@ function App() {
     return d.toISOString().split('T')[0];
   };
 
+  const getApiErrorMessage = (error, fallbackMessage) => (
+    error?.response?.data?.error || fallbackMessage
+  );
+
   const handleScheduleSubmit = async (e) => {
     e.preventDefault();
     const { residencia_id, cuidadora_id, month, type, specificDays, hora_inicio, hora_fim } = scheduleFormData;
@@ -285,7 +289,10 @@ function App() {
       await api.post('/schedules/batch', { schedules: batch });
       setIsScheduleModalOpen(false);
       fetchData();
-    } catch (err) { console.error('Erro ao gerar:', err); }
+    } catch (err) {
+      console.error('Erro ao gerar:', err);
+      alert(getApiErrorMessage(err, 'Nao foi possivel gerar os atendimentos.'));
+    }
   };
 
   const handleEditScheduleSubmit = async (e) => {
@@ -294,7 +301,10 @@ function App() {
       await api.put(`/schedules/${editScheduleData.id}`, editScheduleData);
       setIsEditScheduleModalOpen(false);
       fetchData();
-    } catch (err) { console.error('Erro:', err); }
+    } catch (err) {
+      console.error('Erro:', err);
+      alert(getApiErrorMessage(err, 'Nao foi possivel salvar a edicao do atendimento.'));
+    }
   };
 
   const handleDeleteSchedule = async (id) => {

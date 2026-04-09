@@ -233,30 +233,32 @@ export default function CalendarView({ schedules, residences, holidays, selected
                           {widthPerc > 5 && block.name}
                         </span>
                         
-                        <div 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (onDeleteSchedule) onDeleteSchedule(block.original.id);
-                          }}
-                          style={{
-                            position: 'absolute',
-                            right: '4px',
-                            width: '16px',
-                            height: '16px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            background: 'rgba(0,0,0,0.2)',
-                            borderRadius: '50%',
-                            color: 'white',
-                            lineHeight: '1',
-                            fontSize: '10px',
-                            cursor: 'pointer'
-                          }}
-                          title="Excluir Plantão"
-                        >
-                          ✕
-                        </div>
+                        {onDeleteSchedule && (
+                          <div 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteSchedule(block.original.id);
+                            }}
+                            style={{
+                              position: 'absolute',
+                              right: '4px',
+                              width: '16px',
+                              height: '16px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              background: 'rgba(0,0,0,0.2)',
+                              borderRadius: '50%',
+                              color: 'white',
+                              lineHeight: '1',
+                              fontSize: '10px',
+                              cursor: 'pointer'
+                            }}
+                            title="Excluir Plantão"
+                          >
+                            ✕
+                          </div>
+                        )}
                       </div>
                     );
                   })}

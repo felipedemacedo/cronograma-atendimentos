@@ -320,46 +320,52 @@ app.delete('/api/holidays/:id', (req, res) => {
 // --------------------------------------------------------------------
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
-  db.get('SELECT id, username, role, residencia_ids FROM usuarios WHERE username = ? AND password = ?', [username, password], (err, user) => {
+  db.get('SELECT id, username, role, residencia_ids, cuidadora_ids FROM usuarios WHERE username = ? AND password = ?', [username, password], (err, user) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!user) return res.status(401).json({ error: 'Credenciais inválidas' });
     user.residencia_ids = JSON.parse(user.residencia_ids || '[]');
+    user.cuidadora_ids = JSON.parse(user.cuidadora_ids || '[]');
     res.json(user);
   });
 });
 
 app.get('/api/users', (req, res) => {
-  db.all('SELECT id, username, role, residencia_ids FROM usuarios', [], (err, rows) => {
+  db.all('SELECT id, username, role, residencia_ids, cuidadora_ids FROM usuarios', [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json(rows.map(r => ({ ...r, residencia_ids: JSON.parse(r.residencia_ids || '[]') })));
+    res.json(rows.map(r => ({ 
+      ...r, 
+      residencia_ids: JSON.parse(r.residencia_ids || '[]'),
+      cuidadora_ids: JSON.parse(r.cuidadora_ids || '[]')
+    })));
   });
 });
 
 app.post('/api/users', (req, res) => {
-  const { username, password, role, residencia_ids } = req.body;
+  const { username, password, role, residencia_ids, cuidadora_ids } = req.body;
   if (!username || !password || !role) return res.status(400).json({ error: 'Faltam dados' });
   const id = uuidv4();
-  db.run('INSERT INTO usuarios (id, username, password, role, residencia_ids) VALUES (?, ?, ?, ?, ?)', 
-    [id, username, password, role, JSON.stringify(residencia_ids || [])], 
+  db.run('INSERT INTO usuarios (id, username, password, role, residencia_ids, cuidadora_ids) VALUES (?, ?, ?, ?, ?, ?)', 
+    [id, username, password, role, JSON.stringify(residencia_ids || []), JSON.stringify(cuidadora_ids || [])], 
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
-      res.status(201).json({ id, username, role, residencia_ids });
+      res.status(201).json({ id, username, role, residencia_ids, cuidadora_ids });
     }
   );
 });
 
 app.put('/api/users/:id', (req, res) => {
-  const { username, password, role, residencia_ids } = req.body;
+  const { username, password, role, residencia_ids, cuidadora_ids } = req.body;
   const residenciasJson = JSON.stringify(residencia_ids || []);
+  const cuidadorasJson = JSON.stringify(cuidadora_ids || []);
   if (password) { // Update with password
-    db.run('UPDATE usuarios SET username = ?, password = ?, role = ?, residencia_ids = ? WHERE id = ?', 
-      [username, password, role, residenciasJson, req.params.id], function(err) {
+    db.run('UPDATE usuarios SET username = ?, password = ?, role = ?, residencia_ids = ?, cuidadora_ids = ? WHERE id = ?', 
+      [username, password, role, residenciasJson, cuidadorasJson, req.params.id], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ message: 'Atualizado com sucesso' });
     });
   } else { // Update without password
-    db.run('UPDATE usuarios SET username = ?, role = ?, residencia_ids = ? WHERE id = ?', 
-      [username, role, residenciasJson, req.params.id], function(err) {
+    db.run('UPDATE usuarios SET username = ?, role = ?, residencia_ids = ?, cuidadora_ids = ? WHERE id = ?', 
+      [username, role, residenciasJson, cuidadorasJson, req.params.id], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ message: 'Atualizado com sucesso' });
     });

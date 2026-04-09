@@ -114,6 +114,15 @@ function App() {
     }
   }, [caregivers]);
 
+  useEffect(() => {
+    if (currentUser?.role === 'usuario_visualizador' && !viewResidencia && residences.length > 0) {
+      const allowedResidences = residences.filter(r => currentUser.residencia_ids?.includes(r.id));
+      if (allowedResidences.length > 0) {
+        setViewResidencia(allowedResidences[0].id);
+      }
+    }
+  }, [currentUser, residences, viewResidencia]);
+
   const handleLogin = (user) => {
     localStorage.setItem('session', JSON.stringify({ user, timestamp: Date.now() }));
     setCurrentUser(user);
@@ -322,14 +331,38 @@ function App() {
     return <LoginView onLogin={handleLogin} />;
   }
 
+  const isGeral = currentUser?.role === 'admin_geral';
+  const isAdminResidencial = currentUser?.role === 'admin_residencia';
+  const isVisualizador = currentUser?.role === 'usuario_visualizador';
+
   const userResidences = caregiverMode 
     ? residences.filter(r => caregiverMode.residencia_ids?.includes(r.id))
-    : (currentUser?.role === 'admin_residencia')
+    : (!isGeral && currentUser)
       ? residences.filter(r => currentUser.residencia_ids?.includes(r.id))
       : residences;
 
-  const canEditSchedules = !caregiverMode;
-  const isGeral = currentUser?.role === 'admin_geral';
+  const userCaregivers = caregiverMode
+    ? caregivers.filter(c => c.id === caregiverMode.id)
+    : isVisualizador
+      ? caregivers.filter(c => currentUser.cuidadora_ids?.includes(c.id))
+      : isAdminResidencial
+        ? caregivers.filter(c => c.residencia_ids?.some(r => userResidences.some(ur => ur.id === r)))
+        : caregivers;
+
+  // Apply visibility restrictions to schedules natively for the calendar tab
+  const userSchedules = schedules.filter(s => {
+    if (caregiverMode && s.cuidadora_id !== caregiverMode.id) return false;
+    if (isVisualizador) {
+      if (!currentUser.residencia_ids?.includes(s.residencia_id)) return false;
+      if (!currentUser.cuidadora_ids?.includes(s.cuidadora_id)) return false;
+    }
+    if (isAdminResidencial) {
+      if (!currentUser.residencia_ids?.includes(s.residencia_id)) return false;
+    }
+    return true;
+  });
+
+  const canEditSchedules = isGeral || isAdminResidencial;
 
   return (
     <div className="container">
@@ -359,13 +392,17 @@ function App() {
             <button onClick={() => setActiveTab('calendar')} className="btn-secondary" style={{ background: activeTab === 'calendar' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'calendar' ? 'var(--primary)' : 'var(--border)' }}>
               <MonitorPlay size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Calendário
             </button>
-            <button onClick={() => setActiveTab('schedules')} className="btn-secondary" style={{ background: activeTab === 'schedules' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'schedules' ? 'var(--primary)' : 'var(--border)' }}>
-              <CalendarDays size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Atendimentos
-            </button>
-            <button onClick={() => setActiveTab('finance')} className="btn-secondary" style={{ background: activeTab === 'finance' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'finance' ? 'var(--primary)' : 'var(--border)' }}>
-              <DollarSign size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Financeiro
-            </button>
-            {isGeral && (
+            {!isVisualizador && (
+              <>
+                <button onClick={() => setActiveTab('schedules')} className="btn-secondary" style={{ background: activeTab === 'schedules' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'schedules' ? 'var(--primary)' : 'var(--border)' }}>
+                  <CalendarDays size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Atendimentos
+                </button>
+                <button onClick={() => setActiveTab('finance')} className="btn-secondary" style={{ background: activeTab === 'finance' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'finance' ? 'var(--primary)' : 'var(--border)' }}>
+                  <DollarSign size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Financeiro
+                </button>
+              </>
+            )}
+            {!isVisualizador && (
               <>
                 <button onClick={() => setActiveTab('residences')} className="btn-secondary" style={{ background: activeTab === 'residences' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'residences' ? 'var(--primary)' : 'var(--border)' }}>
                   <Home size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Residências
@@ -387,7 +424,7 @@ function App() {
 
       {caregiverMode ? (
         <CalendarView
-          schedules={schedules.filter(s => s.cuidadora_id === caregiverMode.id)}
+          schedules={userSchedules}
           residences={userResidences}
           holidays={holidays}
           selectedMonth={viewMonth}
@@ -397,15 +434,15 @@ function App() {
           onEditSchedule={() => {}}
           onDeleteSchedule={() => {}}
         />
-      ) : activeTab === 'finance' ? (
+      ) : activeTab === 'finance' && !isVisualizador ? (
         <FinanceView
-          schedules={schedules}
-          caregivers={caregivers}
+          schedules={userSchedules}
+          caregivers={userCaregivers}
           residences={userResidences}
           holidays={holidays}
           currentEnvDate={currentEnvDate}
         />
-      ) : activeTab === 'holidays' && isGeral ? (
+      ) : activeTab === 'holidays' && !isVisualizador ? (
         <HolidaysView 
           holidays={holidays}
           onAddHoliday={handleAddHoliday}
@@ -413,17 +450,17 @@ function App() {
         />
       ) : activeTab === 'calendar' ? (
         <CalendarView
-          schedules={schedules}
+          schedules={userSchedules}
           residences={userResidences}
           holidays={holidays}
           selectedMonth={viewMonth}
           setSelectedMonth={setViewMonth}
           selectedResidencia={viewResidencia}
           setSelectedResidencia={setViewResidencia}
-          onEditSchedule={(s) => { setEditScheduleData(s); setIsEditScheduleModalOpen(true); }}
-          onDeleteSchedule={handleDeleteSchedule}
+          onEditSchedule={canEditSchedules ? (s) => { setEditScheduleData(s); setIsEditScheduleModalOpen(true); } : undefined}
+          onDeleteSchedule={canEditSchedules ? handleDeleteSchedule : undefined}
         />
-      ) : activeTab === 'schedules' ? (
+      ) : activeTab === 'schedules' && !isVisualizador ? (
         <>
           <div className="flex-between" style={{ marginBottom: '16px' }}>
             <h2 style={{ color: 'white' }}>Agenda de Atendimentos</h2>
@@ -535,8 +572,7 @@ function App() {
             )}
           </div>
         </>
-      ) : activeTab === 'residences' && isGeral ? (
-        <>
+      ) : activeTab === 'residences' && !isVisualizador ? (        <>
           <div className="flex-between" style={{ marginBottom: '24px' }}>
             <h2 style={{ color: 'white' }}>Residências</h2>
             <button className="btn-primary" onClick={() => handleOpenResidenceModal()}>
@@ -561,7 +597,7 @@ function App() {
             ))}
           </div>
         </>
-      ) : activeTab === 'caregivers' && isGeral ? (
+      ) : activeTab === 'caregivers' && !isVisualizador ? (
         <>
           <div className="flex-between" style={{ marginBottom: '24px' }}>
             <h2 style={{ color: 'white' }}>Prestadores de Serviços</h2>
@@ -625,9 +661,10 @@ function App() {
             ))}
           </div>
         </>
-      ) : activeTab === 'users' && isGeral ? (
+      ) : activeTab === 'users' && !isVisualizador ? (
         <UsersView 
-          residences={residences}
+          residences={userResidences}
+          caregivers={userCaregivers}
           currentUser={currentUser}
         />
       ) : null}

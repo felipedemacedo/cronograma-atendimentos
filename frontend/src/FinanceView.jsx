@@ -3,13 +3,18 @@ import { DollarSign, Filter } from 'lucide-react';
 
 export default function FinanceView({ schedules, caregivers, residences, holidays, currentEnvDate }) {
   const [selectedMonth, setSelectedMonth] = useState(`${currentEnvDate.getFullYear()}-${String(currentEnvDate.getMonth() + 1).padStart(2, '0')}`);
+  const [selectedResidence, setSelectedResidence] = useState('');
   
   // Calculate Finances
   const reportData = useMemo(() => {
     if (!schedules) return [];
     
     const [yStr, mStr] = selectedMonth.split('-');
-    const reportSchedules = schedules.filter(s => s.data_inicio.startsWith(`${yStr}-${mStr}`) && s.cuidadora_regime_clt !== 1);
+    let reportSchedules = schedules.filter(s => s.data_inicio.startsWith(`${yStr}-${mStr}`) && s.cuidadora_regime_clt !== 1);
+    
+    if (selectedResidence) {
+      reportSchedules = reportSchedules.filter(s => s.residencia_id === selectedResidence);
+    }
 
     const caregiverTotals = {};
 
@@ -83,7 +88,7 @@ export default function FinanceView({ schedules, caregivers, residences, holiday
 
     return Object.values(caregiverTotals).sort((a, b) => b.totalCost - a.totalCost);
 
-  }, [schedules, selectedMonth]);
+  }, [schedules, selectedMonth, selectedResidence]);
 
   const overallTotal = reportData.reduce((acc, curr) => acc + curr.totalCost, 0);
 
@@ -93,7 +98,21 @@ export default function FinanceView({ schedules, caregivers, residences, holiday
         <h2 style={{ color: 'white' }}>Relatório Financeiro</h2>
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)' }}>
-            <Filter size={16} /> Mês:
+            <Filter size={16} /> Residência:
+            <select 
+              className="form-control" 
+              value={selectedResidence} 
+              onChange={e => setSelectedResidence(e.target.value)}
+              style={{ width: '200px' }}
+            >
+              <option value="">Todas as Residências</option>
+              {residences.map(r => (
+                <option key={r.id} value={r.id}>{r.nome}</option>
+              ))}
+            </select>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)' }}>
+            Mês:
             <input 
               type="month" 
               className="form-control" 

@@ -4,10 +4,11 @@ import axios from 'axios';
 
 const api = axios.create({ baseURL: 'http://localhost:3000/api' });
 
-export default function UsersView({ residences, currentUser }) {
+export default function UsersView({ residences, caregivers, currentUser }) {
   const [users, setUsers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({ id: '', username: '', password: '', role: 'admin_geral', residencia_ids: [] });
+  const defaultRole = currentUser.role === 'admin_geral' ? 'admin_geral' : 'admin_residencia';
+  const [formData, setFormData] = useState({ id: '', username: '', password: '', role: defaultRole, residencia_ids: [], cuidadora_ids: [] });
 
   const fetchUsers = async () => {
     try {
@@ -24,7 +25,7 @@ export default function UsersView({ residences, currentUser }) {
     if (user) {
       setFormData({ ...user, password: '' });
     } else {
-      setFormData({ id: '', username: '', password: '', role: 'admin_geral', residencia_ids: [] });
+      setFormData({ id: '', username: '', password: '', role: defaultRole, residencia_ids: [], cuidadora_ids: [] });
     }
     setIsModalOpen(true);
   };
@@ -57,18 +58,25 @@ export default function UsersView({ residences, currentUser }) {
       </div>
 
       <div className="grid">
-        {users.map(u => (
+        {users.filter(u => currentUser.role === 'admin_geral' || u.role !== 'admin_geral').map(u => (
           <div key={u.id} className="card">
             <div className="flex-between" style={{ marginBottom: '16px' }}>
               <h3 style={{ margin: 0, color: 'white' }}>{u.username}</h3>
-              <span style={{ fontSize: '0.8rem', background: u.role === 'admin_geral' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(99, 102, 241, 0.2)', color: u.role === 'admin_geral' ? 'var(--danger)' : 'var(--primary)', padding: '4px 8px', borderRadius: '4px' }}>
-                {u.role === 'admin_geral' ? 'Admin Geral' : 'Admin Especializado'}
+              <span style={{ fontSize: '0.8rem', background: u.role === 'admin_geral' ? 'rgba(239, 68, 68, 0.2)' : u.role === 'admin_residencia' ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255, 255, 255, 0.1)', color: u.role === 'admin_geral' ? 'var(--danger)' : u.role === 'admin_residencia' ? 'var(--primary)' : '#ccc', padding: '4px 8px', borderRadius: '4px' }}>
+                {u.role === 'admin_geral' ? 'Admin Geral' : u.role === 'admin_residencia' ? 'Admin Residencial' : 'Visualizador'}
               </span>
             </div>
-            {u.role === 'admin_residencia' && (
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                Residências: {residences.filter(r => u.residencia_ids?.includes(r.id)).map(r => r.nome).join(', ')}
-              </p>
+            {(u.role === 'admin_residencia' || u.role === 'usuario_visualizador') && (
+              <>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: u.role === 'usuario_visualizador' ? '4px' : '0' }}>
+                  Residências: {residences.filter(r => u.residencia_ids?.includes(r.id)).map(r => r.nome).join(', ') || 'Nenhuma'}
+                </p>
+                {u.role === 'usuario_visualizador' && (
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                    Prestadores: {caregivers?.filter(c => u.cuidadora_ids?.includes(c.id)).map(c => c.nome).join(', ') || 'Nenhum'}
+                  </p>
+                )}
+              </>
             )}
             <div className="flex-gap" style={{ justifyContent: 'flex-end', marginTop: '16px' }}>
               <button className="btn-icon" onClick={() => handleOpenModal(u)}><Edit2 size={18} /></button>
@@ -93,13 +101,14 @@ export default function UsersView({ residences, currentUser }) {
               </div>
               <div className="form-group">
                 <label>Permissão</label>
-                <select className="form-control" value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value, residencia_ids: [] })}>
-                  <option value="admin_geral">Administrador Geral</option>
+                <select className="form-control" value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value, residencia_ids: [], cuidadora_ids: [] })}>
+                  {currentUser.role === 'admin_geral' && <option value="admin_geral">Administrador Geral</option>}
                   <option value="admin_residencia">Administrador de Residências</option>
+                  <option value="usuario_visualizador">Usuário Visualizador</option>
                 </select>
               </div>
 
-              {formData.role === 'admin_residencia' && (
+              {(formData.role === 'admin_residencia' || formData.role === 'usuario_visualizador') && (
                 <div className="form-group">
                   <label>Residências Permitidas</label>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px' }}>
@@ -119,6 +128,32 @@ export default function UsersView({ residences, currentUser }) {
                           }} 
                         />
                         {res.nome}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {formData.role === 'usuario_visualizador' && formData.residencia_ids?.length > 0 && (
+                <div className="form-group">
+                  <label>Prestadores de Serviços Permitidos</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', maxHeight: '200px', overflowY: 'auto' }}>
+                    {caregivers.filter(c => c.residencia_ids?.some(r => formData.residencia_ids?.includes(r))).map(c => (
+                      <label key={c.id} style={{ color: 'white', display: 'flex', alignItems: 'center' }}>
+                        <input 
+                          type="checkbox" 
+                          style={{ marginRight: '8px', accentColor: 'var(--primary)' }}
+                          checked={formData.cuidadora_ids?.includes(c.id) || false} 
+                          onChange={(e) => {
+                            const isChecked = e.target.checked;
+                            const ids = formData.cuidadora_ids || [];
+                            setFormData({
+                              ...formData,
+                              cuidadora_ids: isChecked ? [...ids, c.id] : ids.filter(i => i !== c.id)
+                            });
+                          }} 
+                        />
+                        {c.nome}
                       </label>
                     ))}
                   </div>

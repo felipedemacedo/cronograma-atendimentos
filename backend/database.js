@@ -75,15 +75,16 @@ const db = new sqlite3.Database(dbPath, (err) => {
           username TEXT UNIQUE NOT NULL,
           password TEXT NOT NULL,
           role TEXT NOT NULL,
-          residencia_ids TEXT
+          residencia_ids TEXT,
+          cuidadora_ids TEXT
         )
       `, () => {
         // Create default admin
         db.get("SELECT COUNT(*) as count FROM usuarios", [], (err, row) => {
           if (!err && row.count === 0) {
             const crypto = require('crypto');
-            db.run("INSERT INTO usuarios (id, username, password, role, residencia_ids) VALUES (?, ?, ?, ?, ?)",
-              [crypto.randomUUID(), 'admin', 'admin', 'admin_geral', '[]']);
+            db.run("INSERT INTO usuarios (id, username, password, role, residencia_ids, cuidadora_ids) VALUES (?, ?, ?, ?, ?, ?)",
+              [crypto.randomUUID(), 'admin', 'admin', 'admin_geral', '[]', '[]']);
           }
         });
       });

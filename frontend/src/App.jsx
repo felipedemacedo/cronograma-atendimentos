@@ -294,7 +294,7 @@ function App() {
 
     if (targetDays.length === 0) return alert("Nenhum dia válido gerado! Verifique os dias inseridos ou a indisponibilidade do prestador nesta data.");
 
-    const spansNextDay = hora_fim < hora_inicio; // ex: 19:00 as 07:00
+    const spansNextDay = hora_fim <= hora_inicio; // ex: 19:00 as 07:00 ou 07:00 as 07:00
 
     const batch = targetDays.map(day => {
       const dataInicioUnformatted = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;

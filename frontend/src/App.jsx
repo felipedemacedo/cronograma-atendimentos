@@ -80,6 +80,7 @@ function App() {
 
   const [loadedCount, setLoadedCount] = useState(INITIAL_SCHEDULE_BATCH);
   const [isSchedulesIncrementLoading, setIsSchedulesIncrementLoading] = useState(false);
+  const [uiNotice, setUiNotice] = useState(null);
 
   const handleSetFilterSchedResidencia = (val) => {
     setFilterSchedResidencia(val);
@@ -87,6 +88,18 @@ function App() {
       setFilterSchedMonth(defaultMonth);
     }
   };
+
+  const showNotice = useCallback((message, type = 'info') => {
+    setUiNotice({
+      id: Date.now(),
+      message,
+      type,
+    });
+  }, []);
+
+  const alert = useCallback((message) => {
+    showNotice(String(message), 'error');
+  }, [showNotice]);
 
   const isSameArray = (prev, next) => {
     if (prev === next) return true;
@@ -131,6 +144,16 @@ function App() {
     setLoadedCount(INITIAL_SCHEDULE_BATCH);
     setIsSchedulesIncrementLoading(false);
   }, [filterSchedMonth, filterSchedResidencia, filterSchedCaregiver]);
+
+  useEffect(() => {
+    if (!uiNotice) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      setUiNotice(null);
+    }, 4200);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [uiNotice]);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -288,6 +311,7 @@ function App() {
     try {
       await api.post('/schedules/batch', { schedules: batch });
       setIsScheduleModalOpen(false);
+      showNotice('Atendimentos gerados com sucesso.', 'success');
       fetchData();
     } catch (err) {
       console.error('Erro ao gerar:', err);
@@ -300,6 +324,7 @@ function App() {
     try {
       await api.put(`/schedules/${editScheduleData.id}`, editScheduleData);
       setIsEditScheduleModalOpen(false);
+      showNotice('Atendimento atualizado com sucesso.', 'success');
       fetchData();
     } catch (err) {
       console.error('Erro:', err);
@@ -493,6 +518,24 @@ function App() {
 
   return (
     <div className="container">
+      {uiNotice && (
+        <div
+          key={uiNotice.id}
+          className={`floating-notice floating-notice--${uiNotice.type}`}
+          role="status"
+          aria-live="polite"
+        >
+          <span>{uiNotice.message}</span>
+          <button
+            type="button"
+            className="floating-notice__close"
+            onClick={() => setUiNotice(null)}
+            aria-label="Fechar aviso"
+          >
+            x
+          </button>
+        </div>
+      )}
       <header className="header" style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h1>Gestão de Atendimento</h1>
@@ -796,7 +839,7 @@ function App() {
                   <button className="btn-icon" onClick={() => {
                     const link = `${window.location.origin}/?caregiver_id=${c.id}`;
                     navigator.clipboard.writeText(link);
-                    alert('Link copiado: ' + link);
+                    showNotice(`Link copiado: ${link}`, 'success');
                   }} title="Copiar link de acesso para o Prestador de Serviço"><MonitorPlay size={18} color="var(--success)" /></button>
                   <button className="btn-icon" onClick={() => handleOpenCaregiverModal(c)}><Edit2 size={18} /></button>
                   <button className="btn-icon" onClick={() => handleCaregiverDelete(c.id)}><Trash2 size={18} color="var(--danger)" /></button>

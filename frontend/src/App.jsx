@@ -55,7 +55,7 @@ function App() {
   const [viewMonth, setViewMonth] = useState(defaultMonth);
   const [viewResidencia, setViewResidencia] = useState('');
 
-  const [filterSchedMonth, setFilterSchedMonth] = useState('');
+  const [filterSchedMonth, setFilterSchedMonth] = useState(defaultMonth);
   const [filterSchedResidencia, setFilterSchedResidencia] = useState('');
   const [filterSchedCaregiver, setFilterSchedCaregiver] = useState('');
 

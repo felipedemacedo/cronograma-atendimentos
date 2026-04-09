@@ -61,6 +61,14 @@ const db = new sqlite3.Database(dbPath, (err) => {
           FOREIGN KEY (cuidadora_id) REFERENCES cuidadoras(id) ON DELETE CASCADE
         )
       `);
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS feriados (
+          id TEXT PRIMARY KEY,
+          data TEXT NOT NULL,
+          nome TEXT NOT NULL
+        )
+      `);
     });
   }
 });

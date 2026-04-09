@@ -286,7 +286,36 @@ app.delete('/api/schedules/:id', (req, res) => {
   });
 });
 
-const PORT = 3000;if (require.main === module) {
+const PORT = 3000;
+
+// --------------------------------------------------------------------
+// HOlidays API
+// --------------------------------------------------------------------
+app.get('/api/holidays', (req, res) => {
+  db.all('SELECT * FROM feriados ORDER BY data ASC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+app.post('/api/holidays', (req, res) => {
+  const { data, nome } = req.body;
+  if (!data || !nome) return res.status(400).json({ error: 'Data e Nome são obrigatórios' });
+  const id = uuidv4();
+  db.run('INSERT INTO feriados (id, data, nome) VALUES (?, ?, ?)', [id, data, nome], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.status(201).json({ id, data, nome });
+  });
+});
+
+app.delete('/api/holidays/:id', (req, res) => {
+  db.run('DELETE FROM feriados WHERE id = ?', req.params.id, function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ message: 'Apagado com sucesso' });
+  });
+});
+
+if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
   });

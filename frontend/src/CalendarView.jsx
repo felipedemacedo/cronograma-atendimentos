@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { getBrazilianHolidays } from './utils/holidays';
 
 const parseTime = (timeStr) => {
   if (!timeStr) return 0;
@@ -23,7 +22,7 @@ const getDayOfWeek = (year, month, day) => {
   return days[new Date(year, month - 1, day).getDay()];
 };
 
-export default function CalendarView({ schedules, residences, selectedMonth, setSelectedMonth, selectedResidencia, setSelectedResidencia, onEditSchedule, onDeleteSchedule }) {
+export default function CalendarView({ schedules, residences, holidays, selectedMonth, setSelectedMonth, selectedResidencia, setSelectedResidencia, onEditSchedule, onDeleteSchedule }) {
   const visualData = useMemo(() => {
     if (!selectedMonth || !selectedResidencia) return null;
     
@@ -101,7 +100,7 @@ export default function CalendarView({ schedules, residences, selectedMonth, set
         dayNumber: d,
         dayOfWeek: getDayOfWeek(year, month, d),
         dateStr,
-        feriadoNome: getBrazilianHolidays(year)[dateStr] || null,
+        feriadoNome: holidays.find(h => h.data === dateStr)?.nome || null,
         blocks: placedBlocks,
         rowHeight: (maxLevel + 1) * 32 + 8 // 32px per block + padding margins
       });
@@ -109,7 +108,7 @@ export default function CalendarView({ schedules, residences, selectedMonth, set
 
     return daysArray;
 
-  }, [schedules, selectedMonth, selectedResidencia]);
+  }, [schedules, selectedMonth, selectedResidencia, holidays]);
 
   return (
     <div className="card" style={{ padding: '24px', overflowX: 'auto', background: 'var(--bg-dark)' }}>

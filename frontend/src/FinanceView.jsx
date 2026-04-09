@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { DollarSign, Filter } from 'lucide-react';
-import { getBrazilianHolidays } from './utils/holidays';
 
-export default function FinanceView({ schedules, caregivers, residences, currentEnvDate }) {
+export default function FinanceView({ schedules, caregivers, residences, holidays, currentEnvDate }) {
   const [selectedMonth, setSelectedMonth] = useState(`${currentEnvDate.getFullYear()}-${String(currentEnvDate.getMonth() + 1).padStart(2, '0')}`);
   
   // Calculate Finances
@@ -45,7 +44,7 @@ export default function FinanceView({ schedules, caregivers, residences, current
       }
 
       const year = parseInt(s.data_inicio.split('-')[0], 10);
-      const isShiftHoliday = !!getBrazilianHolidays(year)[s.data_inicio];
+      const isShiftHoliday = holidays.some(h => h.data === s.data_inicio);
       const holidayMultiplier = (isShiftHoliday && isHolidayBonus) ? (holBonusPct / 100) : 0;
 
       const start = new Date(`${s.data_inicio}T${s.hora_inicio}:00`);

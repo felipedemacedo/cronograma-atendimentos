@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Plus, Home, MapPin, Edit2, Trash2, Users, UserCheck, CalendarDays, Clock, MonitorPlay, DollarSign } from 'lucide-react';
+import { Plus, Home, MapPin, Edit2, Trash2, Users, UserCheck, CalendarDays, Clock, MonitorPlay, DollarSign, CalendarHeart, Calendar } from 'lucide-react';
 import api from './api';
 import CalendarView from './CalendarView';
 import FinanceView from './FinanceView';
+import HolidaysView from './HolidaysView';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('calendar'); // 'residences', 'caregivers', 'schedules', 'calendar', 'finance'
+  const [activeTab, setActiveTab] = useState('calendar'); // 'residences', 'caregivers', 'schedules', 'calendar', 'finance', 'holidays'
 
   // Data states
   const [residences, setResidences] = useState([]);
   const [caregivers, setCaregivers] = useState([]);
   const [schedules, setSchedules] = useState([]);
+  const [holidays, setHolidays] = useState([]);
 
   // Modals status
   const [isResidenceModalOpen, setIsResidenceModalOpen] = useState(false);
@@ -56,14 +58,16 @@ function App() {
   // Fetch logic
   const fetchData = async () => {
     try {
-      const [resRes, cgRes, schedRes] = await Promise.all([
+      const [resRes, cgRes, schedRes, holRes] = await Promise.all([
         api.get('/residences'),
         api.get('/caregivers'),
-        api.get('/schedules')
+        api.get('/schedules'),
+        api.get('/holidays')
       ]);
       setResidences(resRes.data);
       setCaregivers(cgRes.data);
       setSchedules(schedRes.data);
+      setHolidays(holRes.data);
     } catch (error) {
       console.error('Erro ao buscar dados:', error);
     }
@@ -240,6 +244,20 @@ function App() {
     }
   };
 
+  // --- Holidays Handlers ---
+  const handleAddHoliday = async (hol) => {
+    try {
+      await api.post('/holidays', hol);
+      fetchData();
+    } catch (err) { console.error('Erro:', err); }
+  };
+  const handleDeleteHoliday = async (id) => {
+    try {
+      await api.delete(`/holidays/${id}`);
+      fetchData();
+    } catch (err) { console.error('Erro:', err); }
+  };
+
   // Helpers UI
   const formatDisplayDate = (dStr) => {
     const parts = dStr.split('-');
@@ -275,6 +293,9 @@ function App() {
         <button onClick={() => setActiveTab('finance')} className="btn-secondary" style={{ background: activeTab === 'finance' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'finance' ? 'var(--primary)' : 'var(--border)' }}>
           <DollarSign size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Financeiro
         </button>
+        <button onClick={() => setActiveTab('holidays')} className="btn-secondary" style={{ background: activeTab === 'holidays' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'holidays' ? 'var(--primary)' : 'var(--border)' }}>
+          <CalendarHeart size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Feriados
+        </button>
       </div>
 
       {activeTab === 'finance' ? (
@@ -282,12 +303,20 @@ function App() {
           schedules={schedules}
           caregivers={caregivers}
           residences={residences}
+          holidays={holidays}
           currentEnvDate={currentEnvDate}
+        />
+      ) : activeTab === 'holidays' ? (
+        <HolidaysView 
+          holidays={holidays}
+          onAddHoliday={handleAddHoliday}
+          onDeleteHoliday={handleDeleteHoliday}
         />
       ) : activeTab === 'calendar' ? (
         <CalendarView
           schedules={schedules}
           residences={residences}
+          holidays={holidays}
           selectedMonth={viewMonth}
           setSelectedMonth={setViewMonth}
           selectedResidencia={viewResidencia}
@@ -472,10 +501,13 @@ function App() {
                 <label>Valor Hora Padrão (R$)</label>
                 <input type="number" step="0.01" className="form-control" value={residenceFormData.valor_hora} onChange={e => setResidenceFormData({ ...residenceFormData, valor_hora: e.target.value })} />
               </div>
-              <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <input type="checkbox" checked={residenceFormData.adicional_noturno} onChange={e => setResidenceFormData({ ...residenceFormData, adicional_noturno: e.target.checked })} />
-                  Aplicar Adicional Noturno (22h às 05h)?
+              <div className="form-group" style={{ marginBottom: '24px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                  <input type="checkbox" style={{ marginRight: '10px', width: '20px', height: '20px', accentColor: 'var(--primary)' }} checked={residenceFormData.adicional_noturno} onChange={e => setResidenceFormData({ ...residenceFormData, adicional_noturno: e.target.checked })} />
+                  <div>
+                    <strong>Aplicar Adicional Noturno (22h às 05h)?</strong>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0, marginTop: '4px', fontWeight: 'normal' }}>Acrescenta um valor extra por hora durante a madrugada.</p>
+                  </div>
                 </label>
               </div>
               {residenceFormData.adicional_noturno && (

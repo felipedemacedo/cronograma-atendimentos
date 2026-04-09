@@ -115,8 +115,10 @@ export default function CalendarView({ schedules, residences, holidays, selected
       {/* Controls */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
         <div style={{ flex: '1 1 200px' }}>
-          <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)' }}>Selecionar Mês/Ano</label>
+          <label htmlFor="calendar-selected-month" style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)' }}>Selecionar Mês/Ano</label>
           <input 
+            id="calendar-selected-month"
+            name="calendarSelectedMonth"
             type="month" 
             className="form-control" 
             style={{ width: '100%' }}
@@ -125,8 +127,10 @@ export default function CalendarView({ schedules, residences, holidays, selected
           />
         </div>
         <div style={{ flex: '2 1 250px' }}>
-          <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)' }}>Filtrar por Residência</label>
+          <label htmlFor="calendar-selected-residencia" style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)' }}>Filtrar por Residência</label>
           <select 
+            id="calendar-selected-residencia"
+            name="calendarSelectedResidencia"
             className="form-control" 
             style={{ width: '100%' }}
             value={selectedResidencia} 

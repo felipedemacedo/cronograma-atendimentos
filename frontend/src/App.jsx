@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Plus, Home, MapPin, Edit2, Trash2, Users, UserCheck, CalendarDays, Clock, MonitorPlay, DollarSign, CalendarHeart, Calendar } from 'lucide-react';
 import api from './api';
 import CalendarView from './CalendarView';
@@ -82,8 +82,20 @@ function App() {
     }
   };
 
+  const isSameArray = (prev, next) => {
+    if (prev === next) return true;
+    if (!Array.isArray(prev) || !Array.isArray(next)) return false;
+    if (prev.length !== next.length) return false;
+    return prev.every((item, index) => JSON.stringify(item) === JSON.stringify(next[index]));
+  };
+
+  const isFetchingRef = useRef(false);
+
   // Fetch logic
   const fetchData = async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+
     try {
       const [resRes, cgRes, schedRes, holRes] = await Promise.all([
         api.get('/residences'),
@@ -91,18 +103,21 @@ function App() {
         api.get('/schedules'),
         api.get('/holidays')
       ]);
-      setResidences(resRes.data);
-      setCaregivers(cgRes.data);
-      setSchedules(schedRes.data);
-      setHolidays(holRes.data);
+
+      setResidences(prev => isSameArray(prev, resRes.data) ? prev : resRes.data);
+      setCaregivers(prev => isSameArray(prev, cgRes.data) ? prev : cgRes.data);
+      setSchedules(prev => isSameArray(prev, schedRes.data) ? prev : schedRes.data);
+      setHolidays(prev => isSameArray(prev, holRes.data) ? prev : holRes.data);
     } catch (error) {
       console.error('Erro ao buscar dados:', error);
+    } finally {
+      isFetchingRef.current = false;
     }
   };
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 2000);
+    const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -493,17 +508,21 @@ function App() {
 
           <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap' }}>
             <div className="form-group" style={{ marginBottom: 0, flex: 1, minWidth: '200px' }}>
-              <label>Filtro: Mês</label>
+              <label htmlFor="filter-sched-month">Filtro: Mês</label>
               <input 
                 type="month" 
+                id="filter-sched-month"
+                name="filterSchedMonth"
                 className="form-control" 
                 value={filterSchedMonth} 
                 onChange={(e) => setFilterSchedMonth(e.target.value)} 
               />
             </div>
             <div className="form-group" style={{ marginBottom: 0, flex: 1, minWidth: '200px' }}>
-              <label>Filtro: Residência</label>
+              <label htmlFor="filter-sched-residencia">Filtro: Residência</label>
               <select 
+                id="filter-sched-residencia"
+                name="filterSchedResidencia"
                 className="form-control" 
                 value={filterSchedResidencia} 
                 onChange={(e) => handleSetFilterSchedResidencia(e.target.value)}
@@ -513,8 +532,10 @@ function App() {
               </select>
             </div>
             <div className="form-group" style={{ marginBottom: 0, flex: 1, minWidth: '200px' }}>
-              <label>Filtro: Prestador</label>
+              <label htmlFor="filter-sched-caregiver">Filtro: Prestador</label>
               <select 
+                id="filter-sched-caregiver"
+                name="filterSchedCaregiver"
                 className="form-control" 
                 value={filterSchedCaregiver} 
                 onChange={(e) => setFilterSchedCaregiver(e.target.value)}
@@ -680,15 +701,15 @@ function App() {
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <h2 style={{ color: 'white', marginBottom: '24px' }}>{currentResidence ? 'Editar Residência' : 'Nova Residência'}</h2>
             <form onSubmit={handleResidenceSubmit}>
-              <div className="form-group"><label>Nome*</label><input autoFocus required className="form-control" value={residenceFormData.nome} onChange={e => setResidenceFormData({ ...residenceFormData, nome: e.target.value })} /></div>
-              <div className="form-group"><label>Endereço</label><input className="form-control" value={residenceFormData.endereco} onChange={e => setResidenceFormData({ ...residenceFormData, endereco: e.target.value })} /></div>
+              <div className="form-group"><label htmlFor="residence-name">Nome*</label><input id="residence-name" name="residenceName" autoFocus required className="form-control" value={residenceFormData.nome} onChange={e => setResidenceFormData({ ...residenceFormData, nome: e.target.value })} /></div>
+              <div className="form-group"><label htmlFor="residence-endereco">Endereço</label><input id="residence-endereco" name="residenceEndereco" className="form-control" value={residenceFormData.endereco} onChange={e => setResidenceFormData({ ...residenceFormData, endereco: e.target.value })} /></div>
               <div className="form-group">
-                <label>Valor Hora Padrão (R$)</label>
-                <input type="number" step="0.01" className="form-control" value={residenceFormData.valor_hora} onChange={e => setResidenceFormData({ ...residenceFormData, valor_hora: e.target.value })} />
+                <label htmlFor="residence-valor-hora">Valor Hora Padrão (R$)</label>
+                <input id="residence-valor-hora" name="residenceValorHora" type="number" step="0.01" className="form-control" value={residenceFormData.valor_hora} onChange={e => setResidenceFormData({ ...residenceFormData, valor_hora: e.target.value })} />
               </div>
               <div className="form-group" style={{ marginBottom: '24px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
                 <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                  <input type="checkbox" style={{ marginRight: '10px', width: '20px', height: '20px', accentColor: 'var(--primary)' }} checked={residenceFormData.adicional_noturno} onChange={e => setResidenceFormData({ ...residenceFormData, adicional_noturno: e.target.checked })} />
+                  <input id="residence-adicional-noturno" name="residenceAdicionalNoturno" type="checkbox" style={{ marginRight: '10px', width: '20px', height: '20px', accentColor: 'var(--primary)' }} checked={residenceFormData.adicional_noturno} onChange={e => setResidenceFormData({ ...residenceFormData, adicional_noturno: e.target.checked })} />
                   <div>
                     <strong>Aplicar Adicional Noturno (22h às 05h)?</strong>
                     <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0, marginTop: '4px', fontWeight: 'normal' }}>Acrescenta um valor extra por hora durante a madrugada.</p>
@@ -697,13 +718,13 @@ function App() {
               </div>
               {residenceFormData.adicional_noturno && (
                 <div className="form-group">
-                  <label>Acréscimo do Adicional Noturno (%) *Mín. 20%</label>
-                  <input type="number" min="20" step="0.1" required className="form-control" value={residenceFormData.percentual_noturno} onChange={e => setResidenceFormData({ ...residenceFormData, percentual_noturno: e.target.value })} />
+                  <label htmlFor="residence-percentual-noturno">Acréscimo do Adicional Noturno (%) *Mín. 20%</label>
+                  <input id="residence-percentual-noturno" name="residencePercentualNoturno" type="number" min="20" step="0.1" required className="form-control" value={residenceFormData.percentual_noturno} onChange={e => setResidenceFormData({ ...residenceFormData, percentual_noturno: e.target.value })} />
                 </div>
               )}
               <div className="form-group" style={{ marginBottom: '24px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
                 <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                  <input type="checkbox" style={{ marginRight: '10px', width: '20px', height: '20px', accentColor: 'var(--primary)' }} checked={residenceFormData.adicional_feriado} onChange={e => setResidenceFormData({ ...residenceFormData, adicional_feriado: e.target.checked })} />
+                  <input id="residence-adicional-feriado" name="residenceAdicionalFeriado" type="checkbox" style={{ marginRight: '10px', width: '20px', height: '20px', accentColor: 'var(--primary)' }} checked={residenceFormData.adicional_feriado} onChange={e => setResidenceFormData({ ...residenceFormData, adicional_feriado: e.target.checked })} />
                   <div>
                     <strong>Aplicar Adicional em Feriados?</strong>
                     <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0, marginTop: '4px', fontWeight: 'normal' }}>Acrescenta um valor extra por hora nos dias de feriado.</p>
@@ -713,8 +734,8 @@ function App() {
 
               {residenceFormData.adicional_feriado && (
                 <div className="form-group">
-                  <label>Acréscimo do Adicional de Feriado (%) *Mín 20%</label>
-                  <input type="number" step="0.1" min="20" required className="form-control" value={residenceFormData.percentual_feriado} onChange={e => setResidenceFormData({ ...residenceFormData, percentual_feriado: e.target.value })} />
+                  <label htmlFor="residence-percentual-feriado">Acréscimo do Adicional de Feriado (%) *Mín 20%</label>
+                  <input id="residence-percentual-feriado" name="residencePercentualFeriado" type="number" step="0.1" min="20" required className="form-control" value={residenceFormData.percentual_feriado} onChange={e => setResidenceFormData({ ...residenceFormData, percentual_feriado: e.target.value })} />
                 </div>
               )}
               
@@ -730,10 +751,10 @@ function App() {
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <h2 style={{ color: 'white', marginBottom: '24px' }}>{currentCaregiver ? 'Editar Prestador' : 'Novo Prestador de Serviço'}</h2>
             <form onSubmit={handleCaregiverSubmit}>
-              <div className="form-group"><label>Nome*</label><input autoFocus required className="form-control" value={caregiverFormData.nome} onChange={e => setCaregiverFormData({ ...caregiverFormData, nome: e.target.value })} /></div>
+              <div className="form-group"><label htmlFor="caregiver-name">Nome*</label><input id="caregiver-name" name="caregiverName" autoFocus required className="form-control" value={caregiverFormData.nome} onChange={e => setCaregiverFormData({ ...caregiverFormData, nome: e.target.value })} /></div>
               <div className="form-group" style={{ marginBottom: '24px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
                 <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                  <input type="checkbox" style={{ marginRight: '10px', width: '20px', height: '20px', accentColor: 'var(--warning)' }} checked={caregiverFormData.regime_clt} onChange={e => setCaregiverFormData({ ...caregiverFormData, regime_clt: e.target.checked })} />
+                  <input type="checkbox" name="caregiverRegimeClt" style={{ marginRight: '10px', width: '20px', height: '20px', accentColor: 'var(--warning)' }} checked={caregiverFormData.regime_clt} onChange={e => setCaregiverFormData({ ...caregiverFormData, regime_clt: e.target.checked })} />
                   <div>
                     <strong>Regime de Contratação Fixa (CLT / Mensalista)</strong>
                     <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0, marginTop: '4px', fontWeight: 'normal' }}>Marcador que exime o profissional dos cálculos na aba de Fechamento Financeiro, mas os mantém visualizáveis no calendário.</p>
@@ -744,13 +765,13 @@ function App() {
               {!caregiverFormData.regime_clt && (
                 <>
                   <div className="form-group">
-                    <label>Valor Hora Específico (R$)</label>
-                    <input type="number" step="0.01" className="form-control" placeholder="Deixe em branco para usar o da Residência" value={caregiverFormData.valor_hora} onChange={e => setCaregiverFormData({ ...caregiverFormData, valor_hora: e.target.value })} />
+                    <label htmlFor="caregiver-valor-hora">Valor Hora Específico (R$)</label>
+                    <input id="caregiver-valor-hora" name="caregiverValorHora" type="number" step="0.01" className="form-control" placeholder="Deixe em branco para usar o da Residência" value={caregiverFormData.valor_hora} onChange={e => setCaregiverFormData({ ...caregiverFormData, valor_hora: e.target.value })} />
                   </div>
 
                   <div className="form-group">
-                    <label>Adicional Noturno (Específico)</label>
-                    <select className="form-control" value={caregiverFormData.adicional_noturno} onChange={e => setCaregiverFormData({ ...caregiverFormData, adicional_noturno: e.target.value })}>
+                    <label htmlFor="caregiver-adicional-noturno">Adicional Noturno (Específico)</label>
+                    <select id="caregiver-adicional-noturno" name="caregiverAdicionalNoturno" className="form-control" value={caregiverFormData.adicional_noturno} onChange={e => setCaregiverFormData({ ...caregiverFormData, adicional_noturno: e.target.value })}>
                       <option value="">Usar Regras da Residência atendida</option>
                       <option value="1">Forçar Aplicação do Adicional</option>
                       <option value="0">Nunca Aplicar Adicional</option>
@@ -759,14 +780,14 @@ function App() {
 
                   {caregiverFormData.adicional_noturno === '1' && (
                     <div className="form-group">
-                      <label>Acréscimo do Adicional Noturno Específico (%) *Mín 20%</label>
-                      <input type="number" step="0.1" min="20" required className="form-control" value={caregiverFormData.percentual_noturno} onChange={e => setCaregiverFormData({ ...caregiverFormData, percentual_noturno: e.target.value })} />
+                      <label htmlFor="caregiver-percentual-noturno">Acréscimo do Adicional Noturno Específico (%) *Mín 20%</label>
+                      <input id="caregiver-percentual-noturno" name="caregiverPercentualNoturno" type="number" step="0.1" min="20" required className="form-control" value={caregiverFormData.percentual_noturno} onChange={e => setCaregiverFormData({ ...caregiverFormData, percentual_noturno: e.target.value })} />
                     </div>
                   )}
 
                   <div className="form-group" style={{ marginTop: '16px' }}>
-                    <label>Adicional em Feriados (Específico)</label>
-                    <select className="form-control" value={caregiverFormData.adicional_feriado} onChange={e => setCaregiverFormData({ ...caregiverFormData, adicional_feriado: e.target.value })}>
+                    <label htmlFor="caregiver-adicional-feriado">Adicional em Feriados (Específico)</label>
+                    <select id="caregiver-adicional-feriado" name="caregiverAdicionalFeriado" className="form-control" value={caregiverFormData.adicional_feriado} onChange={e => setCaregiverFormData({ ...caregiverFormData, adicional_feriado: e.target.value })}>
                       <option value="">Usar Regras da Residência atendida</option>
                       <option value="1">Forçar Aplicação do Adicional Feriado</option>
                       <option value="0">Nunca Aplicar Adicional de Feriado</option>
@@ -775,21 +796,21 @@ function App() {
 
                   {caregiverFormData.adicional_feriado === '1' && (
                     <div className="form-group">
-                      <label>Acréscimo do Adicional Feriado Especifico (%) *Mín 20%</label>
-                      <input type="number" step="0.1" min="20" required className="form-control" value={caregiverFormData.percentual_feriado} onChange={e => setCaregiverFormData({ ...caregiverFormData, percentual_feriado: e.target.value })} />
+                      <label htmlFor="caregiver-percentual-feriado">Acréscimo do Adicional Feriado Especifico (%) *Mín 20%</label>
+                      <input id="caregiver-percentual-feriado" name="caregiverPercentualFeriado" type="number" step="0.1" min="20" required className="form-control" value={caregiverFormData.percentual_feriado} onChange={e => setCaregiverFormData({ ...caregiverFormData, percentual_feriado: e.target.value })} />
                     </div>
                   )}
                 </>
               )}
               
               <div className="form-group">
-                <label>Dias Disponíveis na Semana</label>
+                <div style={{ color: 'white', marginBottom: '8px' }}>Dias Disponíveis na Semana</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px' }}>
                   {WEEKDAYS.map(w => {
                     const isAvail = caregiverFormData.dias_disponiveis?.includes(w.id);
                     return (
                     <label key={w.id} style={{ color: 'white', display: 'flex', alignItems: 'center', fontSize: '0.85rem', background: isAvail ? 'rgba(16, 185, 129, 0.2)' : 'transparent', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border)' }}>
-                      <input type="checkbox" style={{ marginRight: '6px', accentColor: 'var(--success)' }} checked={isAvail} onChange={() => {
+                      <input id={`caregiver-day-${w.id}`} name={`caregiverDay_${w.id}`} type="checkbox" style={{ marginRight: '6px', accentColor: 'var(--success)' }} checked={isAvail} onChange={() => {
                         const dias = caregiverFormData.dias_disponiveis || [];
                         setCaregiverFormData({ ...caregiverFormData, dias_disponiveis: dias.includes(w.id) ? dias.filter(d => d !== w.id) : [...dias, w.id] });
                       }} />
@@ -800,11 +821,11 @@ function App() {
               </div>
 
               <div className="form-group">
-                <label>Observação (Opcional)</label>
-                <textarea className="form-control" placeholder="Ex: Informações gerais, contatos ou restrições..." value={caregiverFormData.observacao} onChange={e => setCaregiverFormData({ ...caregiverFormData, observacao: e.target.value })} style={{ minHeight: '80px', resize: 'vertical' }} />
+                <label htmlFor="caregiver-observacao">Observação (Opcional)</label>
+                <textarea id="caregiver-observacao" name="caregiverObservacao" className="form-control" placeholder="Ex: Informações gerais, contatos ou restrições..." value={caregiverFormData.observacao} onChange={e => setCaregiverFormData({ ...caregiverFormData, observacao: e.target.value })} style={{ minHeight: '80px', resize: 'vertical' }} />
               </div>
 
-              <div className="form-group"><label>Atende nas Residências:</label>
+              <div className="form-group"><div style={{ color: 'white', marginBottom: '8px' }}>Atende nas Residências:</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {residences.map(res => {
                     const isChecked = caregiverFormData.residencia_ids?.includes(res.id);
@@ -812,7 +833,7 @@ function App() {
                     return (
                       <div key={res.id} style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: 'rgba(255,255,255,0.02)', padding: '8px', borderRadius: '4px' }}>
                         <label style={{ color: 'white', display: 'flex', alignItems: 'center' }}>
-                          <input type="checkbox" style={{ marginRight: '8px' }} checked={isChecked} onChange={() => {
+                          <input id={`caregiver-residencia-${res.id}`} name={`caregiverResidencia_${res.id}`} type="checkbox" style={{ marginRight: '8px' }} checked={isChecked} onChange={() => {
                             const ids = caregiverFormData.residencia_ids;
                             const configs = caregiverFormData.residencias_config || [];
                             if (isChecked) {
@@ -831,9 +852,9 @@ function App() {
                           }} />{res.nome}
                         </label>
                         {isChecked && (
-                          <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <label htmlFor={`caregiver-transporte-${res.id}`} style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                             Transporte (Ida e Volta) R$:
-                            <input type="number" step="0.01" value={config.valor_transporte} onChange={(e) => {
+                            <input id={`caregiver-transporte-${res.id}`} name={`caregiverTransporte_${res.id}`} type="number" step="0.01" value={config.valor_transporte} onChange={(e) => {
                                const val = e.target.value;
                                const cfgs = caregiverFormData.residencias_config || [];
                                const exist = cfgs.find(c => c.id === res.id);
@@ -863,28 +884,28 @@ function App() {
             <h2 style={{ color: 'white', marginBottom: '24px' }}>Gerar Agendamentos</h2>
             <form onSubmit={handleScheduleSubmit}>
               <div className="form-group">
-                <label>Residência*</label>
-                <select required className="form-control" value={scheduleFormData.residencia_id} onChange={e => setScheduleFormData({ ...scheduleFormData, residencia_id: e.target.value, cuidadora_id: '' })}>
+                <label htmlFor="schedule-residencia">Residência*</label>
+                <select id="schedule-residencia" name="scheduleResidencia" required className="form-control" value={scheduleFormData.residencia_id} onChange={e => setScheduleFormData({ ...scheduleFormData, residencia_id: e.target.value, cuidadora_id: '' })}>
                   <option value="">Selecione...</option>
                   {userResidences.map(r => <option key={r.id} value={r.id}>{r.nome}</option>)}
                 </select>
               </div>
               <div className="form-group">
-                <label>Prestador de Serviço*</label>
-                <select required className="form-control" value={scheduleFormData.cuidadora_id} onChange={e => setScheduleFormData({ ...scheduleFormData, cuidadora_id: e.target.value })} disabled={!scheduleFormData.residencia_id}>
+                <label htmlFor="schedule-cuidadora">Prestador de Serviço*</label>
+                <select id="schedule-cuidadora" name="scheduleCuidadora" required className="form-control" value={scheduleFormData.cuidadora_id} onChange={e => setScheduleFormData({ ...scheduleFormData, cuidadora_id: e.target.value })} disabled={!scheduleFormData.residencia_id}>
                   <option value="">Selecione...</option>
                   {caregivers.filter(c => c.residencia_ids.includes(scheduleFormData.residencia_id)).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
                 </select>
               </div>
 
               <div className="form-group">
-                <label>Mês / Ano*</label>
-                <input type="month" required className="form-control" value={scheduleFormData.month} onChange={e => setScheduleFormData({ ...scheduleFormData, month: e.target.value })} />
+                <label htmlFor="schedule-month">Mês / Ano*</label>
+                <input id="schedule-month" name="scheduleMonth" type="month" required className="form-control" value={scheduleFormData.month} onChange={e => setScheduleFormData({ ...scheduleFormData, month: e.target.value })} />
               </div>
 
               <div className="form-group">
-                <label>Dias do Mês*</label>
-                <select className="form-control" value={scheduleFormData.type} onChange={e => setScheduleFormData({ ...scheduleFormData, type: e.target.value })}>
+                <label htmlFor="schedule-type">Dias do Mês*</label>
+                <select id="schedule-type" name="scheduleType" className="form-control" value={scheduleFormData.type} onChange={e => setScheduleFormData({ ...scheduleFormData, type: e.target.value })}>
                   <option value="impares">Todos os dias Ímpares</option>
                   <option value="pares">Todos os dias Pares</option>
                   <option value="especificos">Dias Específicos</option>
@@ -893,19 +914,19 @@ function App() {
 
               {scheduleFormData.type === 'especificos' && (
                 <div className="form-group">
-                  <label>Quais dias? (separe por vírgula)</label>
-                  <input required type="text" placeholder="Ex: 1, 3, 5, 20" className="form-control" value={scheduleFormData.specificDays} onChange={e => setScheduleFormData({ ...scheduleFormData, specificDays: e.target.value })} />
+                  <label htmlFor="schedule-specific-days">Quais dias? (separe por vírgula)</label>
+                  <input id="schedule-specific-days" name="scheduleSpecificDays" required type="text" placeholder="Ex: 1, 3, 5, 20" className="form-control" value={scheduleFormData.specificDays} onChange={e => setScheduleFormData({ ...scheduleFormData, specificDays: e.target.value })} />
                 </div>
               )}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div className="form-group">
-                  <label>Hora Início*</label>
-                  <input required type="time" className="form-control" value={scheduleFormData.hora_inicio} onChange={e => setScheduleFormData({ ...scheduleFormData, hora_inicio: e.target.value })} />
+                  <label htmlFor="schedule-hora-inicio">Hora Início*</label>
+                  <input id="schedule-hora-inicio" name="scheduleHoraInicio" required type="time" className="form-control" value={scheduleFormData.hora_inicio} onChange={e => setScheduleFormData({ ...scheduleFormData, hora_inicio: e.target.value })} />
                 </div>
                 <div className="form-group">
-                  <label>Hora Término*</label>
-                  <input required type="time" className="form-control" value={scheduleFormData.hora_fim} onChange={e => setScheduleFormData({ ...scheduleFormData, hora_fim: e.target.value })} />
+                  <label htmlFor="schedule-hora-fim">Hora Término*</label>
+                  <input id="schedule-hora-fim" name="scheduleHoraFim" required type="time" className="form-control" value={scheduleFormData.hora_fim} onChange={e => setScheduleFormData({ ...scheduleFormData, hora_fim: e.target.value })} />
                 </div>
               </div>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>*Se a hora de término for menor que a de início (ex: 19h as 07h), o sistema considerará o término no dia seguinte automaticamente.</p>
@@ -925,8 +946,10 @@ function App() {
             </h2>
             <form onSubmit={handleEditScheduleSubmit}>
               <div className="form-group" style={{ marginBottom: '16px' }}>
-                <label>Prestador de Serviço*</label>
+                <label htmlFor="edit-schedule-cuidadora">Prestador de Serviço*</label>
                 <select 
+                  id="edit-schedule-cuidadora"
+                  name="editScheduleCuidadora"
                   required 
                   className="form-control" 
                   value={editScheduleData.cuidadora_id || ''} 
@@ -940,22 +963,22 @@ function App() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div className="form-group">
-                  <label>Data Início*</label>
-                  <input required type="date" className="form-control" value={editScheduleData.data_inicio} onChange={e => setEditScheduleData({ ...editScheduleData, data_inicio: e.target.value })} />
+                  <label htmlFor="edit-schedule-data-inicio">Data Início*</label>
+                  <input id="edit-schedule-data-inicio" name="editScheduleDataInicio" required type="date" className="form-control" value={editScheduleData.data_inicio} onChange={e => setEditScheduleData({ ...editScheduleData, data_inicio: e.target.value })} />
                 </div>
                 <div className="form-group">
-                  <label>Hora Início*</label>
-                  <input required type="time" className="form-control" value={editScheduleData.hora_inicio} onChange={e => setEditScheduleData({ ...editScheduleData, hora_inicio: e.target.value })} />
+                  <label htmlFor="edit-schedule-hora-inicio">Hora Início*</label>
+                  <input id="edit-schedule-hora-inicio" name="editScheduleHoraInicio" required type="time" className="form-control" value={editScheduleData.hora_inicio} onChange={e => setEditScheduleData({ ...editScheduleData, hora_inicio: e.target.value })} />
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '16px' }}>
                 <div className="form-group">
-                  <label>Data Fim*</label>
-                  <input required type="date" className="form-control" value={editScheduleData.data_fim} onChange={e => setEditScheduleData({ ...editScheduleData, data_fim: e.target.value })} />
+                  <label htmlFor="edit-schedule-data-fim">Data Fim*</label>
+                  <input id="edit-schedule-data-fim" name="editScheduleDataFim" required type="date" className="form-control" value={editScheduleData.data_fim} onChange={e => setEditScheduleData({ ...editScheduleData, data_fim: e.target.value })} />
                 </div>
                 <div className="form-group">
-                  <label>Hora Fim*</label>
-                  <input required type="time" className="form-control" value={editScheduleData.hora_fim} onChange={e => setEditScheduleData({ ...editScheduleData, hora_fim: e.target.value })} />
+                  <label htmlFor="edit-schedule-hora-fim">Hora Fim*</label>
+                  <input id="edit-schedule-hora-fim" name="editScheduleHoraFim" required type="time" className="form-control" value={editScheduleData.hora_fim} onChange={e => setEditScheduleData({ ...editScheduleData, hora_fim: e.target.value })} />
                 </div>
               </div>
               <div className="flex-gap" style={{ justifyContent: 'flex-end', marginTop: '32px' }}><button type="button" className="btn-secondary" onClick={() => setIsEditScheduleModalOpen(false)}>Cancelar</button><button type="submit" className="btn-primary">Salvar Edição</button></div>

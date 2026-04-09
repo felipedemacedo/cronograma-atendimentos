@@ -44,7 +44,7 @@ export default function FinanceView({ schedules, caregivers, residences, holiday
       }
 
       const year = parseInt(s.data_inicio.split('-')[0], 10);
-      const isShiftHoliday = holidays.some(h => h.data === s.data_inicio);
+      const isShiftHoliday = holidays.some(h => h.data === s.data_inicio || h.data === s.data_inicio.substring(5));
       const holidayMultiplier = (isShiftHoliday && isHolidayBonus) ? (holBonusPct / 100) : 0;
 
       const start = new Date(`${s.data_inicio}T${s.hora_inicio}:00`);

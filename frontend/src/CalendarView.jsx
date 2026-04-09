@@ -100,7 +100,7 @@ export default function CalendarView({ schedules, residences, holidays, selected
         dayNumber: d,
         dayOfWeek: getDayOfWeek(year, month, d),
         dateStr,
-        feriadoNome: holidays.find(h => h.data === dateStr)?.nome || null,
+        feriadoNome: holidays.find(h => h.data === dateStr || h.data === dateStr.substring(5))?.nome || null,
         blocks: placedBlocks,
         rowHeight: (maxLevel + 1) * 32 + 8 // 32px per block + padding margins
       });

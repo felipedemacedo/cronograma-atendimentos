@@ -4,22 +4,22 @@ import { Calendar, Plus, Trash2 } from 'lucide-react';
 export default function HolidaysView({ holidays, onAddHoliday, onDeleteHoliday }) {
   const [data, setData] = useState('');
   const [nome, setNome] = useState('');
+  const [recorrente, setRecorrente] = useState(true);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (data && nome) {
-      onAddHoliday({ data, nome });
+      const finalData = recorrente ? data.substring(5) : data;
+      onAddHoliday({ data: finalData, nome });
       setData('');
       setNome('');
     }
   };
 
   const getDayMonthDesc = (dateStr) => {
-    // Usually YYYY-MM-DD
     const parts = dateStr.split('-');
-    if (parts.length === 3) {
-      return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    if (parts.length === 2) return `${parts[1]}/${parts[0]} (Todo ano)`;
     return dateStr;
   };
 
@@ -53,7 +53,18 @@ export default function HolidaysView({ holidays, onAddHoliday, onDeleteHoliday }
               onChange={e => setNome(e.target.value)} 
             />
           </div>
-          <button type="submit" className="btn-primary" style={{ padding: '12px 24px' }}>
+          <div className="form-group" style={{ marginBottom: '10px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '8px' }}>
+              <input 
+                type="checkbox" 
+                checked={recorrente} 
+                onChange={e => setRecorrente(e.target.checked)} 
+                style={{ width: '18px', height: '18px', accentColor: 'var(--primary)' }}
+              />
+              Repetir todo ano
+            </label>
+          </div>
+          <button type="submit" className="btn-primary" style={{ padding: '12px 24px', height: '42px' }}>
             <Plus size={20} /> Adicionar
           </button>
         </form>

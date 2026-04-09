@@ -21,18 +21,21 @@ app.get('/api/residences', (req, res) => {
 
 // Criar nova residência
 app.post('/api/residences', (req, res) => {
-  const { nome, endereco, valor_hora, adicional_noturno, percentual_noturno } = req.body;
+  const { nome, endereco, valor_hora, adicional_noturno, percentual_noturno, adicional_feriado, percentual_feriado } = req.body;
   if (!nome) return res.status(400).json({ error: 'Nome é obrigatório' });
   const id = uuidv4();
   const vHora = valor_hora !== undefined && valor_hora !== '' ? valor_hora : 10;
-  const adNoturno = adicional_noturno ? 1 : 0;
-  const pctNoturno = percentual_noturno !== undefined && percentual_noturno !== '' ? percentual_noturno : 20;
+  const aNoturno = adicional_noturno ? 1 : 0;
+  const pNoturno = percentual_noturno !== undefined && percentual_noturno !== '' ? parseFloat(percentual_noturno) : 20;
+  const aFeriado = adicional_feriado ? 1 : 0;
+  const pFeriado = percentual_feriado !== undefined && percentual_feriado !== '' ? parseFloat(percentual_feriado) : 20;
 
-  db.run('INSERT INTO residencias (id, nome, endereco, valor_hora, adicional_noturno, percentual_noturno) VALUES (?, ?, ?, ?, ?, ?)',
-    [id, nome, endereco, vHora, adNoturno, pctNoturno],
+  db.run(
+    'INSERT INTO residencias (id, nome, endereco, valor_hora, adicional_noturno, percentual_noturno, adicional_feriado, percentual_feriado) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [id, nome, endereco || '', vHora, aNoturno, pNoturno, aFeriado, pFeriado],
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
-      res.status(201).json({ id, nome, endereco, valor_hora: vHora, adicional_noturno: adNoturno, percentual_noturno: pctNoturno });
+      res.status(201).json({ id, nome, endereco, valor_hora: vHora, adicional_noturno: aNoturno, percentual_noturno: pNoturno, adicional_feriado: aFeriado, percentual_feriado: pFeriado });
     }
   );
 });
@@ -40,17 +43,20 @@ app.post('/api/residences', (req, res) => {
 // Atualizar residência
 app.put('/api/residences/:id', (req, res) => {
   const { id } = req.params;
-  const { nome, endereco, valor_hora, adicional_noturno, percentual_noturno } = req.body;
+  const { nome, endereco, valor_hora, adicional_noturno, percentual_noturno, adicional_feriado, percentual_feriado } = req.body;
   const vHora = valor_hora !== undefined && valor_hora !== '' ? valor_hora : 10;
-  const adNoturno = adicional_noturno ? 1 : 0;
-  const pctNoturno = percentual_noturno !== undefined && percentual_noturno !== '' ? percentual_noturno : 20;
+  const aNoturno = adicional_noturno ? 1 : 0;
+  const pNoturno = percentual_noturno !== undefined && percentual_noturno !== '' ? parseFloat(percentual_noturno) : 20;
+  const aFeriado = adicional_feriado ? 1 : 0;
+  const pFeriado = percentual_feriado !== undefined && percentual_feriado !== '' ? parseFloat(percentual_feriado) : 20;
 
-  db.run('UPDATE residencias SET nome = ?, endereco = ?, valor_hora = ?, adicional_noturno = ?, percentual_noturno = ? WHERE id = ?',
-    [nome, endereco, vHora, adNoturno, pctNoturno, id],
+  db.run(
+    'UPDATE residencias SET nome = ?, endereco = ?, valor_hora = ?, adicional_noturno = ?, percentual_noturno = ?, adicional_feriado = ?, percentual_feriado = ? WHERE id = ?',
+    [nome, endereco || '', vHora, aNoturno, pNoturno, aFeriado, pFeriado, id],
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
       if (this.changes === 0) return res.status(404).json({ error: 'Residência não encontrada' });
-      res.json({ id, nome, endereco, valor_hora: vHora, adicional_noturno: adNoturno, percentual_noturno: pctNoturno });
+      res.json({ id, nome, endereco, valor_hora: vHora, adicional_noturno: aNoturno, percentual_noturno: pNoturno, adicional_feriado: aFeriado, percentual_feriado: pFeriado });
     }
   );
 });
@@ -100,7 +106,7 @@ app.get('/api/caregivers', (req, res) => {
 
 // Criar cuidadora
 app.post('/api/caregivers', (req, res) => {
-  const { nome, residencia_ids, residencias_config, valor_hora, observacao, dias_disponiveis, adicional_noturno, percentual_noturno, regime_clt } = req.body;
+  const { nome, residencia_ids, residencias_config, valor_hora, observacao, dias_disponiveis, adicional_noturno, percentual_noturno, regime_clt, adicional_feriado, percentual_feriado } = req.body;
   if (!nome) return res.status(400).json({ error: 'Nome é obrigatório' });
   
   const id = uuidv4();
@@ -108,12 +114,14 @@ app.post('/api/caregivers', (req, res) => {
   const diasStr = dias_disponiveis ? JSON.stringify(dias_disponiveis) : '[0,1,2,3,4,5,6]';
   const aNoturno = adicional_noturno !== undefined && adicional_noturno !== '' ? parseInt(adicional_noturno) : null;
   const pNoturno = percentual_noturno !== undefined && percentual_noturno !== '' ? parseFloat(percentual_noturno) : null;
+  const aFeriado = adicional_feriado !== undefined && adicional_feriado !== '' ? parseInt(adicional_feriado) : null;
+  const pFeriado = percentual_feriado !== undefined && percentual_feriado !== '' ? parseFloat(percentual_feriado) : null;
   const isClt = regime_clt ? 1 : 0;
 
   db.serialize(() => {
     db.run('BEGIN TRANSACTION');
     try {
-      db.run('INSERT INTO cuidadoras (id, nome, valor_hora, observacao, dias_disponiveis, adicional_noturno, percentual_noturno, regime_clt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [id, nome, vHora, observacao || '', diasStr, aNoturno, pNoturno, isClt]);
+      db.run('INSERT INTO cuidadoras (id, nome, valor_hora, observacao, dias_disponiveis, adicional_noturno, percentual_noturno, regime_clt, adicional_feriado, percentual_feriado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, nome, vHora, observacao || '', diasStr, aNoturno, pNoturno, isClt, aFeriado, pFeriado]);
       
       const configs = residencias_config || (residencia_ids || []).map(rId => ({ id: rId, valor_transporte: 9 }));
       if (configs.length > 0) {
@@ -133,17 +141,19 @@ app.post('/api/caregivers', (req, res) => {
 // Atualizar cuidadora
 app.put('/api/caregivers/:id', (req, res) => {
   const { id } = req.params;
-  const { nome, residencia_ids, residencias_config, valor_hora, observacao, dias_disponiveis, adicional_noturno, percentual_noturno, regime_clt } = req.body;
+  const { nome, residencia_ids, residencias_config, valor_hora, observacao, dias_disponiveis, adicional_noturno, percentual_noturno, regime_clt, adicional_feriado, percentual_feriado } = req.body;
   const vHora = valor_hora !== undefined && valor_hora !== '' ? valor_hora : null;
   const diasStr = dias_disponiveis ? JSON.stringify(dias_disponiveis) : '[0,1,2,3,4,5,6]';
   const aNoturno = adicional_noturno !== undefined && adicional_noturno !== '' ? parseInt(adicional_noturno) : null;
   const pNoturno = percentual_noturno !== undefined && percentual_noturno !== '' ? parseFloat(percentual_noturno) : null;
+  const aFeriado = adicional_feriado !== undefined && adicional_feriado !== '' ? parseInt(adicional_feriado) : null;
+  const pFeriado = percentual_feriado !== undefined && percentual_feriado !== '' ? parseFloat(percentual_feriado) : null;
   const isClt = regime_clt ? 1 : 0;
 
   db.serialize(() => {
     db.run('BEGIN TRANSACTION');
     try {
-      db.run('UPDATE cuidadoras SET nome = ?, valor_hora = ?, observacao = ?, dias_disponiveis = ?, adicional_noturno = ?, percentual_noturno = ?, regime_clt = ? WHERE id = ?', [nome, vHora, observacao || '', diasStr, aNoturno, pNoturno, isClt, id]);
+      db.run('UPDATE cuidadoras SET nome = ?, valor_hora = ?, observacao = ?, dias_disponiveis = ?, adicional_noturno = ?, percentual_noturno = ?, regime_clt = ?, adicional_feriado = ?, percentual_feriado = ? WHERE id = ?', [nome, vHora, observacao || '', diasStr, aNoturno, pNoturno, isClt, aFeriado, pFeriado, id]);
       db.run('DELETE FROM cuidadora_residencia WHERE cuidadora_id = ?', id);
       
       const configs = residencias_config || (residencia_ids || []).map(rId => ({ id: rId, valor_transporte: 9 }));
@@ -184,11 +194,15 @@ app.get('/api/schedules', (req, res) => {
            r.valor_hora as residencia_valor_hora,
            r.adicional_noturno as residencia_adicional_noturno,
            r.percentual_noturno as residencia_percentual_noturno,
+           r.adicional_feriado as residencia_adicional_feriado,
+           r.percentual_feriado as residencia_percentual_feriado,
            c.nome as cuidadora_nome,
            c.valor_hora as cuidadora_valor_hora,
            c.regime_clt as cuidadora_regime_clt,
            c.adicional_noturno as cuidadora_adicional_noturno,
            c.percentual_noturno as cuidadora_percentual_noturno,
+           c.adicional_feriado as cuidadora_adicional_feriado,
+           c.percentual_feriado as cuidadora_percentual_feriado,
            COALESCE(cr.valor_transporte, 9) as valor_transporte
     FROM agendamentos a
     JOIN residencias r ON a.residencia_id = r.id

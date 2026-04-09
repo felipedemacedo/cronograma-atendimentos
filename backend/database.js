@@ -14,9 +14,11 @@ const db = new sqlite3.Database(dbPath, (err) => {
           id TEXT PRIMARY KEY,
           nome TEXT NOT NULL,
           endereco TEXT,
-          valor_hora REAL DEFAULT 10,
+          valor_hora REAL,
           adicional_noturno INTEGER DEFAULT 0,
-          percentual_noturno REAL DEFAULT 20
+          percentual_noturno REAL DEFAULT NULL,
+          adicional_feriado INTEGER DEFAULT 0,
+          percentual_feriado REAL DEFAULT NULL
         )
       `);
       
@@ -29,7 +31,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
           dias_disponiveis TEXT DEFAULT '[0,1,2,3,4,5,6]',
           adicional_noturno INTEGER DEFAULT NULL,
           percentual_noturno REAL DEFAULT NULL,
-          regime_clt INTEGER DEFAULT 0
+          regime_clt INTEGER DEFAULT 0,
+          adicional_feriado INTEGER DEFAULT NULL,
+          percentual_feriado REAL DEFAULT NULL
         )
       `);
 

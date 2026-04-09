@@ -23,10 +23,10 @@ function App() {
 
   // Form states
   const [currentResidence, setCurrentResidence] = useState(null);
-  const [residenceFormData, setResidenceFormData] = useState({ nome: '', endereco: '', valor_hora: 10, adicional_noturno: false, percentual_noturno: 20 });
+  const [residenceFormData, setResidenceFormData] = useState({ nome: '', endereco: '', valor_hora: 10, adicional_noturno: false, percentual_noturno: 20, adicional_feriado: false, percentual_feriado: 20 });
 
   const [currentCaregiver, setCurrentCaregiver] = useState(null);
-  const [caregiverFormData, setCaregiverFormData] = useState({ nome: '', residencia_ids: [], residencias_config: [], valor_hora: '', observacao: '', dias_disponiveis: [0,1,2,3,4,5,6], adicional_noturno: '', percentual_noturno: '', regime_clt: false });
+  const [caregiverFormData, setCaregiverFormData] = useState({ nome: '', residencia_ids: [], residencias_config: [], valor_hora: '', observacao: '', dias_disponiveis: [0,1,2,3,4,5,6], adicional_noturno: '', percentual_noturno: '', adicional_feriado: '', percentual_feriado: '', regime_clt: false });
 
   const WEEKDAYS = [
     { id: 0, label: 'Domingo' }, { id: 1, label: 'Segunda' },
@@ -76,15 +76,17 @@ function App() {
   }, []);
 
   // --- Residence Handlers ---
-  const handleOpenResidenceModal = (r = null) => {
-    setCurrentResidence(r);
-    setResidenceFormData(r ? {
-      nome: r.nome,
-      endereco: r.endereco || '',
-      valor_hora: r.valor_hora || 10,
-      adicional_noturno: r.adicional_noturno === 1,
-      percentual_noturno: r.percentual_noturno || 20
-    } : { nome: '', endereco: '', valor_hora: 10, adicional_noturno: false, percentual_noturno: 20 });
+  const handleOpenResidenceModal = (res = null) => {
+    setCurrentResidence(res);
+    setResidenceFormData(res ? { 
+      nome: res.nome, 
+      endereco: res.endereco || '', 
+      valor_hora: res.valor_hora || 10, 
+      adicional_noturno: res.adicional_noturno === 1,
+      percentual_noturno: res.percentual_noturno || 20,
+      adicional_feriado: res.adicional_feriado === 1,
+      percentual_feriado: res.percentual_feriado || 20
+    } : { nome: '', endereco: '', valor_hora: 10, adicional_noturno: false, percentual_noturno: 20, adicional_feriado: false, percentual_feriado: 20 });
     setIsResidenceModalOpen(true);
   };
   const handleResidenceSubmit = async (e) => {
@@ -115,8 +117,10 @@ function App() {
       dias_disponiveis: c.dias_disponiveis || [0,1,2,3,4,5,6],
       adicional_noturno: c.adicional_noturno !== null && c.adicional_noturno !== undefined ? String(c.adicional_noturno) : '',
       percentual_noturno: c.percentual_noturno || '',
+      adicional_feriado: c.adicional_feriado !== null && c.adicional_feriado !== undefined ? String(c.adicional_feriado) : '',
+      percentual_feriado: c.percentual_feriado || '',
       regime_clt: c.regime_clt || false
-    } : { nome: '', residencia_ids: [], residencias_config: [], valor_hora: '', observacao: '', dias_disponiveis: [0,1,2,3,4,5,6], adicional_noturno: '', percentual_noturno: '', regime_clt: false });
+    } : { nome: '', residencia_ids: [], residencias_config: [], valor_hora: '', observacao: '', dias_disponiveis: [0,1,2,3,4,5,6], adicional_noturno: '', percentual_noturno: '', adicional_feriado: '', percentual_feriado: '', regime_clt: false });
     setIsCaregiverModalOpen(true);
   };
   const handleCaregiverSubmit = async (e) => {
@@ -384,6 +388,7 @@ function App() {
                 <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '8px', marginBottom: '24px', fontSize: '0.85rem' }}>
                   <p><strong>Valor Base:</strong> R$ {parseFloat(res.valor_hora || 10).toFixed(2)} / hora</p>
                   <p><strong>Adc. Noturno:</strong> {res.adicional_noturno === 1 ? `Sim (+${res.percentual_noturno || 20}%)` : 'Não'}</p>
+                  <p><strong>Adc. Feriado:</strong> {res.adicional_feriado === 1 ? `Sim (+${res.percentual_feriado || 20}%)` : 'Não'}</p>
                 </div>
                 <div className="flex-gap" style={{ justifyContent: 'flex-end' }}>
                   <button className="btn-icon" onClick={() => handleOpenResidenceModal(res)}><Edit2 size={18} /></button>
@@ -435,7 +440,12 @@ function App() {
                   <p><strong>Custo Específico:</strong> {c.valor_hora ? `R$ ${parseFloat(c.valor_hora).toFixed(2)} / hora` : 'Vinculado ao da Residência'}</p>
                   {c.adicional_noturno !== null && c.adicional_noturno !== undefined && (
                     <p style={{ marginTop: '4px' }}>
-                      <strong>Adicional Noturno Específico:</strong> {c.adicional_noturno === 1 ? `Sim (+${c.percentual_noturno || 20}%)` : 'Não Aplicar'}
+                      <strong>Adicional Noturno (Fixo):</strong> {c.adicional_noturno === 1 ? `Sim (+${c.percentual_noturno || 20}%)` : 'Não Aplicar'}
+                    </p>
+                  )}
+                  {c.adicional_feriado !== null && c.adicional_feriado !== undefined && (
+                    <p style={{ marginTop: '4px' }}>
+                      <strong>Adicional Feriado (Fixo):</strong> {c.adicional_feriado === 1 ? `Sim (+${c.percentual_feriado || 20}%)` : 'Não Aplicar'}
                     </p>
                   )}
                 </div>
@@ -474,6 +484,23 @@ function App() {
                   <input type="number" min="20" step="0.1" required className="form-control" value={residenceFormData.percentual_noturno} onChange={e => setResidenceFormData({ ...residenceFormData, percentual_noturno: e.target.value })} />
                 </div>
               )}
+              <div className="form-group" style={{ marginBottom: '24px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                  <input type="checkbox" style={{ marginRight: '10px', width: '20px', height: '20px', accentColor: 'var(--primary)' }} checked={residenceFormData.adicional_feriado} onChange={e => setResidenceFormData({ ...residenceFormData, adicional_feriado: e.target.checked })} />
+                  <div>
+                    <strong>Aplicar Adicional em Feriados?</strong>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0, marginTop: '4px', fontWeight: 'normal' }}>Acrescenta um valor extra por hora nos dias de feriado.</p>
+                  </div>
+                </label>
+              </div>
+
+              {residenceFormData.adicional_feriado && (
+                <div className="form-group">
+                  <label>Acréscimo do Adicional de Feriado (%) *Mín 20%</label>
+                  <input type="number" step="0.1" min="20" required className="form-control" value={residenceFormData.percentual_feriado} onChange={e => setResidenceFormData({ ...residenceFormData, percentual_feriado: e.target.value })} />
+                </div>
+              )}
+              
               <div className="flex-gap" style={{ justifyContent: 'flex-end', marginTop: '32px' }}><button type="button" className="btn-secondary" onClick={() => setIsResidenceModalOpen(false)}>Cancelar</button><button type="submit" className="btn-primary">Salvar</button></div>
             </form>
           </div>
@@ -517,6 +544,22 @@ function App() {
                     <div className="form-group">
                       <label>Acréscimo do Adicional Noturno Específico (%) *Mín 20%</label>
                       <input type="number" step="0.1" min="20" required className="form-control" value={caregiverFormData.percentual_noturno} onChange={e => setCaregiverFormData({ ...caregiverFormData, percentual_noturno: e.target.value })} />
+                    </div>
+                  )}
+
+                  <div className="form-group" style={{ marginTop: '16px' }}>
+                    <label>Adicional em Feriados (Específico)</label>
+                    <select className="form-control" value={caregiverFormData.adicional_feriado} onChange={e => setCaregiverFormData({ ...caregiverFormData, adicional_feriado: e.target.value })}>
+                      <option value="">Usar Regras da Residência atendida</option>
+                      <option value="1">Forçar Aplicação do Adicional Feriado</option>
+                      <option value="0">Nunca Aplicar Adicional de Feriado</option>
+                    </select>
+                  </div>
+
+                  {caregiverFormData.adicional_feriado === '1' && (
+                    <div className="form-group">
+                      <label>Acréscimo do Adicional Feriado Especifico (%) *Mín 20%</label>
+                      <input type="number" step="0.1" min="20" required className="form-control" value={caregiverFormData.percentual_feriado} onChange={e => setCaregiverFormData({ ...caregiverFormData, percentual_feriado: e.target.value })} />
                     </div>
                   )}
                 </>

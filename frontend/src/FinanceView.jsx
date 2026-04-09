@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { DollarSign, Download, Filter } from 'lucide-react';
+import { DollarSign, Filter } from 'lucide-react';
+import { getBrazilianHolidays } from './utils/holidays';
 
 export default function FinanceView({ schedules, caregivers, residences, currentEnvDate }) {
   const [selectedMonth, setSelectedMonth] = useState(`${currentEnvDate.getFullYear()}-${String(currentEnvDate.getMonth() + 1).padStart(2, '0')}`);
@@ -35,6 +36,18 @@ export default function FinanceView({ schedules, caregivers, residences, current
         if (isNightBonus) bonusPct = s.cuidadora_percentual_noturno || 20;
       }
 
+      let isHolidayBonus = s.residencia_adicional_feriado === 1;
+      let holBonusPct = s.residencia_percentual_feriado || 20;
+
+      if (s.cuidadora_adicional_feriado !== null && s.cuidadora_adicional_feriado !== undefined) {
+        isHolidayBonus = s.cuidadora_adicional_feriado === 1;
+        if (isHolidayBonus) holBonusPct = s.cuidadora_percentual_feriado || 20;
+      }
+
+      const year = parseInt(s.data_inicio.split('-')[0], 10);
+      const isShiftHoliday = !!getBrazilianHolidays(year)[s.data_inicio];
+      const holidayMultiplier = (isShiftHoliday && isHolidayBonus) ? (holBonusPct / 100) : 0;
+
       const start = new Date(`${s.data_inicio}T${s.hora_inicio}:00`);
       const end = new Date(`${s.data_fim}T${s.hora_fim}:00`);
       
@@ -52,11 +65,11 @@ export default function FinanceView({ schedules, caregivers, residences, current
       const normalHours = normalMinutes / 60;
       const nightHours = nightMinutes / 60;
       
-      let shiftCost = normalHours * baseRate;
+      let shiftCost = normalHours * baseRate * (1 + holidayMultiplier);
       if (isNightBonus) {
-        shiftCost += nightHours * (baseRate * (1 + bonusPct / 100));
+        shiftCost += nightHours * (baseRate * (1 + (bonusPct / 100) + holidayMultiplier));
       } else {
-        shiftCost += nightHours * baseRate;
+        shiftCost += nightHours * baseRate * (1 + holidayMultiplier);
       }
       
       const transportCost = parseFloat(s.valor_transporte !== null && s.valor_transporte !== undefined ? s.valor_transporte : 9);

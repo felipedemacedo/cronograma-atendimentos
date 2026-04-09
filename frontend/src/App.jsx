@@ -4,9 +4,21 @@ import api from './api';
 import CalendarView from './CalendarView';
 import FinanceView from './FinanceView';
 import HolidaysView from './HolidaysView';
+import LoginView from './LoginView';
+import UsersView from './UsersView';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('calendar'); // 'residences', 'caregivers', 'schedules', 'calendar', 'finance', 'holidays'
+  const [currentUser, setCurrentUser] = useState(() => {
+    const stored = localStorage.getItem('session');
+    if (stored) {
+      const session = JSON.parse(stored);
+      if (Date.now() - session.timestamp < 60 * 60 * 1000) return session.user;
+    }
+    return null;
+  });
+
+  const [caregiverMode, setCaregiverMode] = useState(null);
+  const [activeTab, setActiveTab] = useState('calendar'); // 'residences', 'caregivers', 'schedules', 'calendar', 'finance', 'holidays', 'users'
 
   // Data states
   const [residences, setResidences] = useState([]);
@@ -89,6 +101,29 @@ function App() {
     const interval = setInterval(fetchData, 2000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const careId = urlParams.get('caregiver_id');
+    if (careId && caregivers.length > 0) {
+      const found = caregivers.find(c => c.id === careId);
+      if (found) {
+        setCaregiverMode(found);
+        setActiveTab('calendar');
+      }
+    }
+  }, [caregivers]);
+
+  const handleLogin = (user) => {
+    localStorage.setItem('session', JSON.stringify({ user, timestamp: Date.now() }));
+    setCurrentUser(user);
+    setActiveTab('calendar'); // reset tab on fresh login
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('session');
+    setCurrentUser(null);
+  };
 
   // --- Residence Handlers ---
   const handleOpenResidenceModal = (res = null) => {
@@ -283,48 +318,94 @@ function App() {
     return true;
   });
 
+  if (!currentUser && !caregiverMode && !new URLSearchParams(window.location.search).get('caregiver_id')) {
+    return <LoginView onLogin={handleLogin} />;
+  }
+
+  const userResidences = caregiverMode 
+    ? residences.filter(r => caregiverMode.residencia_ids?.includes(r.id))
+    : (currentUser?.role === 'admin_residencia')
+      ? residences.filter(r => currentUser.residencia_ids?.includes(r.id))
+      : residences;
+
+  const canEditSchedules = !caregiverMode;
+  const isGeral = currentUser?.role === 'admin_geral';
+
   return (
     <div className="container">
-      <header className="header" style={{ marginBottom: '24px' }}>
+      <header className="header" style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h1>Gestão de Atendimento</h1>
           <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
-            Gerencie as residências, prestadores de serviços e seus horários.
+            {caregiverMode ? `Acesso Restrito: ${caregiverMode.nome}` : 'Gerencie as residências, prestadores de serviços e seus horários.'}
           </p>
         </div>
+        {currentUser && (
+          <div style={{ textAlign: 'right' }}>
+            <span style={{ color: 'white', marginRight: '16px' }}>Olá, <strong>{currentUser.username}</strong></span>
+            <button className="btn-secondary" onClick={handleLogout}>Sair</button>
+          </div>
+        )}
       </header>
 
       {/* Tabs */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginBottom: '32px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
-        <button onClick={() => setActiveTab('residences')} className="btn-secondary" style={{ background: activeTab === 'residences' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'residences' ? 'var(--primary)' : 'var(--border)' }}>
-          <Home size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Residências
-        </button>
-        <button onClick={() => setActiveTab('caregivers')} className="btn-secondary" style={{ background: activeTab === 'caregivers' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'caregivers' ? 'var(--primary)' : 'var(--border)' }}>
-          <Users size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Prestadores de Serviço
-        </button>
-        <button onClick={() => setActiveTab('schedules')} className="btn-secondary" style={{ background: activeTab === 'schedules' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'schedules' ? 'var(--primary)' : 'var(--border)' }}>
-          <CalendarDays size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Atendimentos
-        </button>
-        <button onClick={() => setActiveTab('calendar')} className="btn-secondary" style={{ background: activeTab === 'calendar' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'calendar' ? 'var(--primary)' : 'var(--border)' }}>
-          <MonitorPlay size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Calendário
-        </button>
-        <button onClick={() => setActiveTab('finance')} className="btn-secondary" style={{ background: activeTab === 'finance' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'finance' ? 'var(--primary)' : 'var(--border)' }}>
-          <DollarSign size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Financeiro
-        </button>
-        <button onClick={() => setActiveTab('holidays')} className="btn-secondary" style={{ background: activeTab === 'holidays' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'holidays' ? 'var(--primary)' : 'var(--border)' }}>
-          <CalendarHeart size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Feriados
-        </button>
+        {caregiverMode ? (
+          <button className="btn-secondary active" style={{ borderColor: 'var(--primary)', background: 'rgba(255,255,255,0.1)' }}>
+            <MonitorPlay size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Meu Calendário
+          </button>
+        ) : (
+          <>
+            <button onClick={() => setActiveTab('calendar')} className="btn-secondary" style={{ background: activeTab === 'calendar' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'calendar' ? 'var(--primary)' : 'var(--border)' }}>
+              <MonitorPlay size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Calendário
+            </button>
+            <button onClick={() => setActiveTab('schedules')} className="btn-secondary" style={{ background: activeTab === 'schedules' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'schedules' ? 'var(--primary)' : 'var(--border)' }}>
+              <CalendarDays size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Atendimentos
+            </button>
+            <button onClick={() => setActiveTab('finance')} className="btn-secondary" style={{ background: activeTab === 'finance' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'finance' ? 'var(--primary)' : 'var(--border)' }}>
+              <DollarSign size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Financeiro
+            </button>
+            {isGeral && (
+              <>
+                <button onClick={() => setActiveTab('residences')} className="btn-secondary" style={{ background: activeTab === 'residences' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'residences' ? 'var(--primary)' : 'var(--border)' }}>
+                  <Home size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Residências
+                </button>
+                <button onClick={() => setActiveTab('caregivers')} className="btn-secondary" style={{ background: activeTab === 'caregivers' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'caregivers' ? 'var(--primary)' : 'var(--border)' }}>
+                  <Users size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Prestadores de Serviço
+                </button>
+                <button onClick={() => setActiveTab('holidays')} className="btn-secondary" style={{ background: activeTab === 'holidays' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'holidays' ? 'var(--primary)' : 'var(--border)' }}>
+                  <CalendarHeart size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Feriados
+                </button>
+                <button onClick={() => setActiveTab('users')} className="btn-secondary" style={{ background: activeTab === 'users' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'users' ? 'var(--primary)' : 'var(--border)' }}>
+                  <UserCheck size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Usuários VIP
+                </button>
+              </>
+            )}
+          </>
+        )}
       </div>
 
-      {activeTab === 'finance' ? (
+      {caregiverMode ? (
+        <CalendarView
+          schedules={schedules.filter(s => s.cuidadora_id === caregiverMode.id)}
+          residences={userResidences}
+          holidays={holidays}
+          selectedMonth={viewMonth}
+          setSelectedMonth={setViewMonth}
+          selectedResidencia={viewResidencia}
+          setSelectedResidencia={setViewResidencia}
+          onEditSchedule={() => {}}
+          onDeleteSchedule={() => {}}
+        />
+      ) : activeTab === 'finance' ? (
         <FinanceView
           schedules={schedules}
           caregivers={caregivers}
-          residences={residences}
+          residences={userResidences}
           holidays={holidays}
           currentEnvDate={currentEnvDate}
         />
-      ) : activeTab === 'holidays' ? (
+      ) : activeTab === 'holidays' && isGeral ? (
         <HolidaysView 
           holidays={holidays}
           onAddHoliday={handleAddHoliday}
@@ -333,7 +414,7 @@ function App() {
       ) : activeTab === 'calendar' ? (
         <CalendarView
           schedules={schedules}
-          residences={residences}
+          residences={userResidences}
           holidays={holidays}
           selectedMonth={viewMonth}
           setSelectedMonth={setViewMonth}
@@ -387,7 +468,7 @@ function App() {
                 onChange={(e) => handleSetFilterSchedResidencia(e.target.value)}
               >
                 <option value="">Todas</option>
-                {residences.map(r => <option key={r.id} value={r.id}>{r.nome}</option>)}
+                {userResidences.map(r => <option key={r.id} value={r.id}>{r.nome}</option>)}
               </select>
             </div>
             <div className="form-group" style={{ marginBottom: 0, flex: 1, minWidth: '200px' }}>
@@ -454,7 +535,7 @@ function App() {
             )}
           </div>
         </>
-      ) : activeTab === 'residences' ? (
+      ) : activeTab === 'residences' && isGeral ? (
         <>
           <div className="flex-between" style={{ marginBottom: '24px' }}>
             <h2 style={{ color: 'white' }}>Residências</h2>
@@ -480,7 +561,7 @@ function App() {
             ))}
           </div>
         </>
-      ) : (
+      ) : activeTab === 'caregivers' && isGeral ? (
         <>
           <div className="flex-between" style={{ marginBottom: '24px' }}>
             <h2 style={{ color: 'white' }}>Prestadores de Serviços</h2>
@@ -532,6 +613,11 @@ function App() {
                   )}
                 </div>
                 <div className="flex-gap" style={{ justifyContent: 'flex-end' }}>
+                  <button className="btn-icon" onClick={() => {
+                    const link = `${window.location.origin}/?caregiver_id=${c.id}`;
+                    navigator.clipboard.writeText(link);
+                    alert('Link copiado: ' + link);
+                  }} title="Copiar link de acesso para o Prestador de Serviço"><MonitorPlay size={18} color="var(--success)" /></button>
                   <button className="btn-icon" onClick={() => handleOpenCaregiverModal(c)}><Edit2 size={18} /></button>
                   <button className="btn-icon" onClick={() => handleCaregiverDelete(c.id)}><Trash2 size={18} color="var(--danger)" /></button>
                 </div>
@@ -539,7 +625,12 @@ function App() {
             ))}
           </div>
         </>
-      )}
+      ) : activeTab === 'users' && isGeral ? (
+        <UsersView 
+          residences={residences}
+          currentUser={currentUser}
+        />
+      ) : null}
 
       {/* MODAL: RESIDENCE EDIT/CREATE */}
       {isResidenceModalOpen && (
@@ -734,7 +825,7 @@ function App() {
                 <label>Residência*</label>
                 <select required className="form-control" value={scheduleFormData.residencia_id} onChange={e => setScheduleFormData({ ...scheduleFormData, residencia_id: e.target.value, cuidadora_id: '' })}>
                   <option value="">Selecione...</option>
-                  {residences.map(r => <option key={r.id} value={r.id}>{r.nome}</option>)}
+                  {userResidences.map(r => <option key={r.id} value={r.id}>{r.nome}</option>)}
                 </select>
               </div>
               <div className="form-group">

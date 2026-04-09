@@ -2,8 +2,9 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
+    "start": "node server.js",
     "test": "jest --detectOpenHandles"
   },
   "keywords": [],
@@ -13,8 +14,8 @@
   "dependencies": {
     "cors": "^2.8.6",
     "express": "^5.2.1",
-    "sqlite3": "^6.0.1",
-    "uuid": "^13.0.0"
+    "pg": "^8.20.0",
+    "pg-mem": "^3.0.14"
   },
   "devDependencies": {
     "jest": "^30.3.0",

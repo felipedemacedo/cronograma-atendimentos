@@ -7,7 +7,7 @@ Sistema web para gerenciamento de residencias, cuidadoras, plantões, feriados, 
 O projeto foi dividido em duas partes:
 
 - `frontend`: interface web em React com Vite
-- `backend`: API REST em Node.js com Express e banco SQLite
+- `backend`: API REST em Node.js com Express e banco PostgreSQL
 
 O objetivo do sistema é centralizar a operação de atendimento residencial, permitindo cadastrar residencias e profissionais, gerar escalas de plantão, visualizar o calendário e acompanhar os custos mensais.
 
@@ -135,7 +135,8 @@ CronogramaCuidadoras/
 
 - Node.js
 - Express
-- SQLite
+- PostgreSQL
+- Neon
 - CORS
 
 ### Testes
@@ -145,7 +146,9 @@ CronogramaCuidadoras/
 
 ## Banco de Dados
 
-O sistema utiliza SQLite e cria automaticamente as tabelas principais na inicialização:
+O backend agora utiliza PostgreSQL, com compatibilidade preparada para Neon e deploy na Vercel. Em ambiente de teste automatizado, o projeto usa um banco Postgres em memoria para manter os testes rapidos.
+
+As tabelas principais sao criadas automaticamente na inicializacao:
 
 - `residencias`
 - `cuidadoras`
@@ -154,7 +157,7 @@ O sistema utiliza SQLite e cria automaticamente as tabelas principais na inicial
 - `feriados`
 - `usuarios`
 
-Também é criado um usuário administrador padrão quando o banco está vazio.
+Tambem e criado um usuario administrador padrao quando o banco esta vazio.
 
 ## Fluxo Básico de Uso
 
@@ -172,6 +175,76 @@ Também é criado um usuário administrador padrão quando o banco está vazio.
 - O sistema usa atualização periódica dos dados na interface
 - Os cálculos financeiros consideram regras da residência, da cuidadora e dos feriados cadastrados
 - Existe suporte a links de acesso restrito para visualização de calendário por cuidadora
+
+## Deploy na Vercel
+
+### O que pode subir na Vercel
+
+O frontend em React + Vite pode ser publicado normalmente na Vercel.
+
+### O que exige atencao
+
+Para o backend funcionar corretamente na Vercel, e necessario configurar uma base PostgreSQL externa, como Neon.
+
+### Backend na Vercel com Neon
+
+O projeto foi preparado para:
+
+- publicar o frontend na Vercel
+- publicar o backend na Vercel
+- conectar o backend a um banco Neon via `DATABASE_URL`
+
+Arquivo de exemplo do backend:
+
+```env
+DATABASE_URL=postgres://user:password@ep-example.us-east-1.aws.neon.tech/neondb?sslmode=require
+```
+
+Existe um exemplo em:
+
+- `backend/.env.example`
+
+### Estrategia recomendada
+
+- Publicar o `frontend` na Vercel
+- Publicar o `backend` na Vercel
+- Configurar `DATABASE_URL` no backend
+- Configurar a URL publica do backend na variavel `VITE_API_URL` do frontend
+
+### Variavel de ambiente do frontend
+
+Arquivo de exemplo:
+
+```env
+VITE_API_URL=https://seu-backend.exemplo.com/api
+```
+
+Existe um exemplo em:
+
+- `frontend/.env.example`
+
+### Como publicar o frontend na Vercel
+
+1. Criar um novo projeto na Vercel
+2. Importar este repositório
+3. Definir `frontend` como `Root Directory`
+4. Confirmar os comandos:
+- Build Command: `npm run build`
+- Output Directory: `dist`
+5. Adicionar a variável `VITE_API_URL`
+6. Fazer o deploy
+
+### Como publicar o backend na Vercel
+
+1. Criar um novo projeto na Vercel apontando para `backend`
+2. Adicionar a variavel `DATABASE_URL`
+3. Fazer o deploy
+
+### Fluxo final de deploy
+
+1. Subir o backend na Vercel com `DATABASE_URL`
+2. Copiar a URL publica do backend
+3. Subir o frontend na Vercel com `VITE_API_URL`
 
 ## Próximas Melhorias Recomendadas
 

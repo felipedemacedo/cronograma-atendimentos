@@ -3,386 +3,510 @@ const cors = require('cors');
 const crypto = require('crypto');
 const db = require('./database');
 
+const app = express();
+const PORT = 3000;
+
 const uuidv4 = () => crypto.randomUUID();
 
-const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Listar todas as residências
-app.get('/api/residences', (req, res) => {
-  db.all('SELECT * FROM residencias', [], (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    res.json(rows);
-  });
-});
-
-// Criar nova residência
-app.post('/api/residences', (req, res) => {
-  const { nome, endereco, valor_hora, adicional_noturno, percentual_noturno, adicional_feriado, percentual_feriado } = req.body;
-  if (!nome) return res.status(400).json({ error: 'Nome é obrigatório' });
-  const id = uuidv4();
-  const vHora = valor_hora !== undefined && valor_hora !== '' ? valor_hora : 10;
-  const aNoturno = adicional_noturno ? 1 : 0;
-  const pNoturno = percentual_noturno !== undefined && percentual_noturno !== '' ? parseFloat(percentual_noturno) : 20;
-  const aFeriado = adicional_feriado ? 1 : 0;
-  const pFeriado = percentual_feriado !== undefined && percentual_feriado !== '' ? parseFloat(percentual_feriado) : 20;
-
-  db.run(
-    'INSERT INTO residencias (id, nome, endereco, valor_hora, adicional_noturno, percentual_noturno, adicional_feriado, percentual_feriado) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    [id, nome, endereco || '', vHora, aNoturno, pNoturno, aFeriado, pFeriado],
-    function(err) {
-      if (err) return res.status(500).json({ error: err.message });
-      res.status(201).json({ id, nome, endereco, valor_hora: vHora, adicional_noturno: aNoturno, percentual_noturno: pNoturno, adicional_feriado: aFeriado, percentual_feriado: pFeriado });
-    }
-  );
-});
-
-// Atualizar residência
-app.put('/api/residences/:id', (req, res) => {
-  const { id } = req.params;
-  const { nome, endereco, valor_hora, adicional_noturno, percentual_noturno, adicional_feriado, percentual_feriado } = req.body;
-  const vHora = valor_hora !== undefined && valor_hora !== '' ? valor_hora : 10;
-  const aNoturno = adicional_noturno ? 1 : 0;
-  const pNoturno = percentual_noturno !== undefined && percentual_noturno !== '' ? parseFloat(percentual_noturno) : 20;
-  const aFeriado = adicional_feriado ? 1 : 0;
-  const pFeriado = percentual_feriado !== undefined && percentual_feriado !== '' ? parseFloat(percentual_feriado) : 20;
-
-  db.run(
-    'UPDATE residencias SET nome = ?, endereco = ?, valor_hora = ?, adicional_noturno = ?, percentual_noturno = ?, adicional_feriado = ?, percentual_feriado = ? WHERE id = ?',
-    [nome, endereco || '', vHora, aNoturno, pNoturno, aFeriado, pFeriado, id],
-    function(err) {
-      if (err) return res.status(500).json({ error: err.message });
-      if (this.changes === 0) return res.status(404).json({ error: 'Residência não encontrada' });
-      res.json({ id, nome, endereco, valor_hora: vHora, adicional_noturno: aNoturno, percentual_noturno: pNoturno, adicional_feriado: aFeriado, percentual_feriado: pFeriado });
-    }
-  );
-});
-
-// Deletar residência
-app.delete('/api/residences/:id', (req, res) => {
-  const { id } = req.params;
-  db.run('DELETE FROM residencias WHERE id = ?', id, function (err) {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    if (this.changes === 0) {
-      return res.status(404).json({ error: 'Residência não encontrada' });
-    }
-    // Deletar associações em cascata não automáticas no sqlite por padrão sem PRAGMA foreign_keys = ON, mas o CASCADE cuida disso se ativado.
-    // Vamos deletar manualmente por segurança:
-    db.run('DELETE FROM cuidadora_residencia WHERE residencia_id = ?', id);
-    res.status(204).send();
-  });
-});
-
-// --- CUIDADORAS ---
-
-// Listar cuidadoras com suas residências
-app.get('/api/caregivers', (req, res) => {
-  db.all('SELECT * FROM cuidadoras', [], (err, cuidadoras) => {
-    if (err) return res.status(500).json({ error: err.message });
-    
-    db.all('SELECT * FROM cuidadora_residencia', [], (err, rels) => {
-      if (err) return res.status(500).json({ error: err.message });
-      
-      const cuidadorasComResidencias = cuidadoras.map(c => {
-        const suasResidencias = rels.filter(r => r.cuidadora_id === c.id);
-        let parsedDias = [0,1,2,3,4,5,6];
-        try { parsedDias = c.dias_disponiveis ? JSON.parse(c.dias_disponiveis) : [0,1,2,3,4,5,6]; } catch (e) {}
-        return { 
-          ...c, 
-          dias_disponiveis: parsedDias,
-          residencia_ids: suasResidencias.map(r => r.residencia_id),
-          residencias_config: suasResidencias.map(r => ({ id: r.residencia_id, valor_transporte: r.valor_transporte }))
-        };
-      });
-      res.json(cuidadorasComResidencias);
-    });
-  });
-});
-
-// Criar cuidadora
-app.post('/api/caregivers', (req, res) => {
-  const { nome, residencia_ids, residencias_config, valor_hora, observacao, dias_disponiveis, adicional_noturno, percentual_noturno, regime_clt, adicional_feriado, percentual_feriado } = req.body;
-  if (!nome) return res.status(400).json({ error: 'Nome é obrigatório' });
-  
-  const id = uuidv4();
-  const vHora = valor_hora !== undefined && valor_hora !== '' ? valor_hora : null;
-  const diasStr = dias_disponiveis ? JSON.stringify(dias_disponiveis) : '[0,1,2,3,4,5,6]';
-  const aNoturno = adicional_noturno !== undefined && adicional_noturno !== '' ? parseInt(adicional_noturno) : null;
-  const pNoturno = percentual_noturno !== undefined && percentual_noturno !== '' ? parseFloat(percentual_noturno) : null;
-  const aFeriado = adicional_feriado !== undefined && adicional_feriado !== '' ? parseInt(adicional_feriado) : null;
-  const pFeriado = percentual_feriado !== undefined && percentual_feriado !== '' ? parseFloat(percentual_feriado) : null;
-  const isClt = regime_clt ? 1 : 0;
-
-  db.serialize(() => {
-    db.run('BEGIN TRANSACTION');
+function asyncHandler(handler) {
+  return async (req, res) => {
     try {
-      db.run('INSERT INTO cuidadoras (id, nome, valor_hora, observacao, dias_disponiveis, adicional_noturno, percentual_noturno, regime_clt, adicional_feriado, percentual_feriado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, nome, vHora, observacao || '', diasStr, aNoturno, pNoturno, isClt, aFeriado, pFeriado]);
-      
-      const configs = residencias_config || (residencia_ids || []).map(rId => ({ id: rId, valor_transporte: 9 }));
-      if (configs.length > 0) {
-        const stmt = db.prepare('INSERT INTO cuidadora_residencia (cuidadora_id, residencia_id, valor_transporte) VALUES (?, ?, ?)');
-        configs.forEach(r => stmt.run(id, r.id, r.valor_transporte !== undefined && r.valor_transporte !== '' ? r.valor_transporte : 9));
-        stmt.finalize();
-      }
-      db.run('COMMIT');
-      res.status(201).json({ id, nome, valor_hora: vHora, observacao, dias_disponiveis, regime_clt: isClt === 1, residencia_ids: configs.map(c => c.id), residencias_config: configs });
+      await handler(req, res);
     } catch (error) {
-      db.run('ROLLBACK');
+      console.error(error);
       res.status(500).json({ error: error.message });
     }
-  });
-});
+  };
+}
 
-// Atualizar cuidadora
-app.put('/api/caregivers/:id', (req, res) => {
-  const { id } = req.params;
-  const { nome, residencia_ids, residencias_config, valor_hora, observacao, dias_disponiveis, adicional_noturno, percentual_noturno, regime_clt, adicional_feriado, percentual_feriado } = req.body;
-  const vHora = valor_hora !== undefined && valor_hora !== '' ? valor_hora : null;
-  const diasStr = dias_disponiveis ? JSON.stringify(dias_disponiveis) : '[0,1,2,3,4,5,6]';
-  const aNoturno = adicional_noturno !== undefined && adicional_noturno !== '' ? parseInt(adicional_noturno) : null;
-  const pNoturno = percentual_noturno !== undefined && percentual_noturno !== '' ? parseFloat(percentual_noturno) : null;
-  const aFeriado = adicional_feriado !== undefined && adicional_feriado !== '' ? parseInt(adicional_feriado) : null;
-  const pFeriado = percentual_feriado !== undefined && percentual_feriado !== '' ? parseFloat(percentual_feriado) : null;
-  const isClt = regime_clt ? 1 : 0;
+function parseJsonArray(value, fallback = []) {
+  try {
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
-  db.serialize(() => {
-    db.run('BEGIN TRANSACTION');
-    try {
-      db.run('UPDATE cuidadoras SET nome = ?, valor_hora = ?, observacao = ?, dias_disponiveis = ?, adicional_noturno = ?, percentual_noturno = ?, regime_clt = ?, adicional_feriado = ?, percentual_feriado = ? WHERE id = ?', [nome, vHora, observacao || '', diasStr, aNoturno, pNoturno, isClt, aFeriado, pFeriado, id]);
-      db.run('DELETE FROM cuidadora_residencia WHERE cuidadora_id = ?', id);
-      
-      const configs = residencias_config || (residencia_ids || []).map(rId => ({ id: rId, valor_transporte: 9 }));
-      if (configs.length > 0) {
-        const stmt = db.prepare('INSERT INTO cuidadora_residencia (cuidadora_id, residencia_id, valor_transporte) VALUES (?, ?, ?)');
-        configs.forEach(r => stmt.run(id, r.id, r.valor_transporte !== undefined && r.valor_transporte !== '' ? r.valor_transporte : 9));
-        stmt.finalize();
-      }
-      
-      db.run('COMMIT');
-      res.json({ id, nome, valor_hora: vHora, observacao, dias_disponiveis, regime_clt: isClt === 1, residencia_ids: configs.map(c => c.id), residencias_config: configs });
-    } catch (error) {
-      db.run('ROLLBACK');
-      res.status(500).json({ error: error.message });
-    }
-  });
-});
+function normalizeResidencePayload(body) {
+  return {
+    nome: body.nome,
+    endereco: body.endereco || '',
+    valor_hora: body.valor_hora !== undefined && body.valor_hora !== '' ? body.valor_hora : 10,
+    adicional_noturno: body.adicional_noturno ? 1 : 0,
+    percentual_noturno: body.percentual_noturno !== undefined && body.percentual_noturno !== '' ? parseFloat(body.percentual_noturno) : 20,
+    adicional_feriado: body.adicional_feriado ? 1 : 0,
+    percentual_feriado: body.percentual_feriado !== undefined && body.percentual_feriado !== '' ? parseFloat(body.percentual_feriado) : 20,
+  };
+}
 
-// Deletar cuidadora
-app.delete('/api/caregivers/:id', (req, res) => {
-  const { id } = req.params;
-  db.run('DELETE FROM cuidadoras WHERE id = ?', id, function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    if (this.changes === 0) return res.status(404).json({ error: 'Cuidadora não encontrada' });
-    
-    db.run('DELETE FROM cuidadora_residencia WHERE cuidadora_id = ?', id);
-    res.status(204).send();
-  });
-});
+function normalizeCaregiverPayload(body) {
+  return {
+    nome: body.nome,
+    valor_hora: body.valor_hora !== undefined && body.valor_hora !== '' ? body.valor_hora : null,
+    observacao: body.observacao || '',
+    dias_disponiveis: body.dias_disponiveis ? JSON.stringify(body.dias_disponiveis) : '[0,1,2,3,4,5,6]',
+    adicional_noturno: body.adicional_noturno !== undefined && body.adicional_noturno !== '' ? parseInt(body.adicional_noturno, 10) : null,
+    percentual_noturno: body.percentual_noturno !== undefined && body.percentual_noturno !== '' ? parseFloat(body.percentual_noturno) : null,
+    regime_clt: body.regime_clt ? 1 : 0,
+    adicional_feriado: body.adicional_feriado !== undefined && body.adicional_feriado !== '' ? parseInt(body.adicional_feriado, 10) : null,
+    percentual_feriado: body.percentual_feriado !== undefined && body.percentual_feriado !== '' ? parseFloat(body.percentual_feriado) : null,
+    configs: body.residencias_config || (body.residencia_ids || []).map((id) => ({ id, valor_transporte: 9 })),
+  };
+}
 
-// --- AGENDAMENTOS / CRONOGRAMA ---
+function serializeCaregiverResponse(id, payload) {
+  return {
+    id,
+    nome: payload.nome,
+    valor_hora: payload.valor_hora,
+    observacao: payload.observacao,
+    dias_disponiveis: parseJsonArray(payload.dias_disponiveis, [0, 1, 2, 3, 4, 5, 6]),
+    regime_clt: payload.regime_clt === 1,
+    residencia_ids: payload.configs.map((config) => config.id),
+    residencias_config: payload.configs,
+  };
+}
 
-// Listar todos os agendamentos
-app.get('/api/schedules', (req, res) => {
-  const query = `
-    SELECT a.*, 
-           r.nome as residencia_nome, 
-           r.valor_hora as residencia_valor_hora,
-           r.adicional_noturno as residencia_adicional_noturno,
-           r.percentual_noturno as residencia_percentual_noturno,
-           r.adicional_feriado as residencia_adicional_feriado,
-           r.percentual_feriado as residencia_percentual_feriado,
-           c.nome as cuidadora_nome,
-           c.valor_hora as cuidadora_valor_hora,
-           c.regime_clt as cuidadora_regime_clt,
-           c.adicional_noturno as cuidadora_adicional_noturno,
-           c.percentual_noturno as cuidadora_percentual_noturno,
-           c.adicional_feriado as cuidadora_adicional_feriado,
-           c.percentual_feriado as cuidadora_percentual_feriado,
-           COALESCE(cr.valor_transporte, 9) as valor_transporte
-    FROM agendamentos a
-    JOIN residencias r ON a.residencia_id = r.id
-    JOIN cuidadoras c ON a.cuidadora_id = c.id
-    LEFT JOIN cuidadora_residencia cr ON a.cuidadora_id = cr.cuidadora_id AND a.residencia_id = cr.residencia_id
-    ORDER BY a.data_inicio ASC, a.hora_inicio ASC
-  `;
-  db.all(query, [], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(rows);
-  });
-});
+async function replaceCaregiverResidences(client, caregiverId, configs) {
+  await client.query('DELETE FROM cuidadora_residencia WHERE cuidadora_id = $1', [caregiverId]);
 
-// Criar múltiplos agendamentos de uma vez (Batch - para lidar com lógicas de "dias ímpares", etc do frontend)
-app.post('/api/schedules/batch', (req, res) => {
-  const { schedules } = req.body;
-  if (!schedules || !Array.isArray(schedules) || schedules.length === 0) {
-    return res.status(400).json({ error: 'Lista de agendamentos inválida' });
+  for (const config of configs) {
+    await client.query(
+      `
+        INSERT INTO cuidadora_residencia (cuidadora_id, residencia_id, valor_transporte)
+        VALUES ($1, $2, $3)
+      `,
+      [
+        caregiverId,
+        config.id,
+        config.valor_transporte !== undefined && config.valor_transporte !== '' ? config.valor_transporte : 9,
+      ]
+    );
+  }
+}
+
+app.get('/api/residences', asyncHandler(async (_req, res) => {
+  const result = await db.query('SELECT * FROM residencias ORDER BY nome ASC');
+  res.json(result.rows);
+}));
+
+app.post('/api/residences', asyncHandler(async (req, res) => {
+  const payload = normalizeResidencePayload(req.body);
+  if (!payload.nome) {
+    return res.status(400).json({ error: 'Nome e obrigatorio' });
   }
 
-  const stmt = db.prepare(`
-    INSERT INTO agendamentos (id, residencia_id, cuidadora_id, data_inicio, hora_inicio, data_fim, hora_fim) 
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `);
+  const id = uuidv4();
 
-  db.serialize(() => {
-    db.run('BEGIN TRANSACTION');
-    try {
-      schedules.forEach(sched => {
-        const id = uuidv4();
-        stmt.run([id, sched.residencia_id, sched.cuidadora_id, sched.data_inicio, sched.hora_inicio, sched.data_fim, sched.hora_fim]);
-      });
-      db.run('COMMIT');
-      stmt.finalize();
-      res.status(201).json({ message: 'Agendamentos criados com sucesso' });
-    } catch (error) {
-      db.run('ROLLBACK');
-      res.status(500).json({ error: error.message });
-    }
+  await db.query(
+    `
+      INSERT INTO residencias (
+        id, nome, endereco, valor_hora, adicional_noturno, percentual_noturno, adicional_feriado, percentual_feriado
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `,
+    [
+      id,
+      payload.nome,
+      payload.endereco,
+      payload.valor_hora,
+      payload.adicional_noturno,
+      payload.percentual_noturno,
+      payload.adicional_feriado,
+      payload.percentual_feriado,
+    ]
+  );
+
+  res.status(201).json({ id, ...payload });
+}));
+
+app.put('/api/residences/:id', asyncHandler(async (req, res) => {
+  const payload = normalizeResidencePayload(req.body);
+  const result = await db.query(
+    `
+      UPDATE residencias
+      SET nome = $1, endereco = $2, valor_hora = $3, adicional_noturno = $4,
+          percentual_noturno = $5, adicional_feriado = $6, percentual_feriado = $7
+      WHERE id = $8
+    `,
+    [
+      payload.nome,
+      payload.endereco,
+      payload.valor_hora,
+      payload.adicional_noturno,
+      payload.percentual_noturno,
+      payload.adicional_feriado,
+      payload.percentual_feriado,
+      req.params.id,
+    ]
+  );
+
+  if (result.rowCount === 0) {
+    return res.status(404).json({ error: 'Residencia nao encontrada' });
+  }
+
+  res.json({ id: req.params.id, ...payload });
+}));
+
+app.delete('/api/residences/:id', asyncHandler(async (req, res) => {
+  const result = await db.query('DELETE FROM residencias WHERE id = $1', [req.params.id]);
+  if (result.rowCount === 0) {
+    return res.status(404).json({ error: 'Residencia nao encontrada' });
+  }
+
+  res.status(204).send();
+}));
+
+app.get('/api/caregivers', asyncHandler(async (_req, res) => {
+  const caregiversResult = await db.query('SELECT * FROM cuidadoras ORDER BY nome ASC');
+  const relationsResult = await db.query('SELECT * FROM cuidadora_residencia');
+
+  const caregivers = caregiversResult.rows.map((caregiver) => {
+    const caregiverRelations = relationsResult.rows.filter((relation) => relation.cuidadora_id === caregiver.id);
+
+    return {
+      ...caregiver,
+      dias_disponiveis: parseJsonArray(caregiver.dias_disponiveis, [0, 1, 2, 3, 4, 5, 6]),
+      residencia_ids: caregiverRelations.map((relation) => relation.residencia_id),
+      residencias_config: caregiverRelations.map((relation) => ({
+        id: relation.residencia_id,
+        valor_transporte: relation.valor_transporte,
+      })),
+    };
   });
-});
 
-// Editar um agendamento específico
-app.put('/api/schedules/:id', (req, res) => {
-  const { id } = req.params;
+  res.json(caregivers);
+}));
+
+app.post('/api/caregivers', asyncHandler(async (req, res) => {
+  const payload = normalizeCaregiverPayload(req.body);
+  if (!payload.nome) {
+    return res.status(400).json({ error: 'Nome e obrigatorio' });
+  }
+
+  const id = uuidv4();
+  const client = await db.getClient();
+
+  try {
+    await client.query('BEGIN');
+    await client.query(
+      `
+        INSERT INTO cuidadoras (
+          id, nome, valor_hora, observacao, dias_disponiveis, adicional_noturno,
+          percentual_noturno, regime_clt, adicional_feriado, percentual_feriado
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `,
+      [
+        id,
+        payload.nome,
+        payload.valor_hora,
+        payload.observacao,
+        payload.dias_disponiveis,
+        payload.adicional_noturno,
+        payload.percentual_noturno,
+        payload.regime_clt,
+        payload.adicional_feriado,
+        payload.percentual_feriado,
+      ]
+    );
+
+    await replaceCaregiverResidences(client, id, payload.configs);
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+
+  res.status(201).json(serializeCaregiverResponse(id, payload));
+}));
+
+app.put('/api/caregivers/:id', asyncHandler(async (req, res) => {
+  const payload = normalizeCaregiverPayload(req.body);
+  const client = await db.getClient();
+
+  try {
+    await client.query('BEGIN');
+    const result = await client.query(
+      `
+        UPDATE cuidadoras
+        SET nome = $1, valor_hora = $2, observacao = $3, dias_disponiveis = $4,
+            adicional_noturno = $5, percentual_noturno = $6, regime_clt = $7,
+            adicional_feriado = $8, percentual_feriado = $9
+        WHERE id = $10
+      `,
+      [
+        payload.nome,
+        payload.valor_hora,
+        payload.observacao,
+        payload.dias_disponiveis,
+        payload.adicional_noturno,
+        payload.percentual_noturno,
+        payload.regime_clt,
+        payload.adicional_feriado,
+        payload.percentual_feriado,
+        req.params.id,
+      ]
+    );
+
+    if (result.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Cuidadora nao encontrada' });
+    }
+
+    await replaceCaregiverResidences(client, req.params.id, payload.configs);
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+
+  res.json(serializeCaregiverResponse(req.params.id, payload));
+}));
+
+app.delete('/api/caregivers/:id', asyncHandler(async (req, res) => {
+  const result = await db.query('DELETE FROM cuidadoras WHERE id = $1', [req.params.id]);
+  if (result.rowCount === 0) {
+    return res.status(404).json({ error: 'Cuidadora nao encontrada' });
+  }
+
+  res.status(204).send();
+}));
+
+app.get('/api/schedules', asyncHandler(async (_req, res) => {
+  const result = await db.query(
+    `
+      SELECT
+        a.*,
+        r.nome AS residencia_nome,
+        r.valor_hora AS residencia_valor_hora,
+        r.adicional_noturno AS residencia_adicional_noturno,
+        r.percentual_noturno AS residencia_percentual_noturno,
+        r.adicional_feriado AS residencia_adicional_feriado,
+        r.percentual_feriado AS residencia_percentual_feriado,
+        c.nome AS cuidadora_nome,
+        c.valor_hora AS cuidadora_valor_hora,
+        c.regime_clt AS cuidadora_regime_clt,
+        c.adicional_noturno AS cuidadora_adicional_noturno,
+        c.percentual_noturno AS cuidadora_percentual_noturno,
+        c.adicional_feriado AS cuidadora_adicional_feriado,
+        c.percentual_feriado AS cuidadora_percentual_feriado,
+        COALESCE(cr.valor_transporte, 9) AS valor_transporte
+      FROM agendamentos a
+      JOIN residencias r ON a.residencia_id = r.id
+      JOIN cuidadoras c ON a.cuidadora_id = c.id
+      LEFT JOIN cuidadora_residencia cr
+        ON a.cuidadora_id = cr.cuidadora_id AND a.residencia_id = cr.residencia_id
+      ORDER BY a.data_inicio ASC, a.hora_inicio ASC
+    `
+  );
+
+  res.json(result.rows);
+}));
+
+app.post('/api/schedules/batch', asyncHandler(async (req, res) => {
+  const { schedules } = req.body;
+  if (!Array.isArray(schedules) || schedules.length === 0) {
+    return res.status(400).json({ error: 'Lista de agendamentos invalida' });
+  }
+
+  const client = await db.getClient();
+
+  try {
+    await client.query('BEGIN');
+    for (const schedule of schedules) {
+      await client.query(
+        `
+          INSERT INTO agendamentos (
+            id, residencia_id, cuidadora_id, data_inicio, hora_inicio, data_fim, hora_fim
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `,
+        [
+          uuidv4(),
+          schedule.residencia_id,
+          schedule.cuidadora_id,
+          schedule.data_inicio,
+          schedule.hora_inicio,
+          schedule.data_fim,
+          schedule.hora_fim,
+        ]
+      );
+    }
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+
+  res.status(201).json({ message: 'Agendamentos criados com sucesso' });
+}));
+
+app.put('/api/schedules/:id', asyncHandler(async (req, res) => {
   const { data_inicio, hora_inicio, data_fim, hora_fim, cuidadora_id } = req.body;
 
-  db.run(`
-    UPDATE agendamentos 
-    SET data_inicio = ?, hora_inicio = ?, data_fim = ?, hora_fim = ?, cuidadora_id = ?
-    WHERE id = ?`,
-    [data_inicio, hora_inicio, data_fim, hora_fim, cuidadora_id, id],
-    function(err) {
-      if (err) return res.status(500).json({ error: err.message });
-      if (this.changes === 0) return res.status(404).json({ error: 'Agendamento não encontrado' });
-      res.json({ id, data_inicio, hora_inicio, data_fim, hora_fim });
-    }
+  const result = await db.query(
+    `
+      UPDATE agendamentos
+      SET data_inicio = $1, hora_inicio = $2, data_fim = $3, hora_fim = $4, cuidadora_id = $5
+      WHERE id = $6
+    `,
+    [data_inicio, hora_inicio, data_fim, hora_fim, cuidadora_id, req.params.id]
   );
-});
 
-// Excluir múltiplos agendamentos de uma vez (Batch)
-app.delete('/api/schedules/batch', (req, res) => {
-  const { ids } = req.body; // ids no body do DELETE ou via query (mas DELETE body é melhor tratar se suportado, senao usar POST)
-  if (!ids || !Array.isArray(ids) || ids.length === 0) {
-    return res.status(400).json({ error: 'Lista de IDs inválida' });
+  if (result.rowCount === 0) {
+    return res.status(404).json({ error: 'Agendamento nao encontrado' });
   }
-  const placeholders = ids.map(() => '?').join(',');
-  db.run(`DELETE FROM agendamentos WHERE id IN (${placeholders})`, ids, function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    res.status(204).send();
-  });
-});
 
-// Excluir um agendamento específico
-app.delete('/api/schedules/:id', (req, res) => {
-  const { id } = req.params;
-  db.run('DELETE FROM agendamentos WHERE id = ?', id, function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    if (this.changes === 0) return res.status(404).json({ error: 'Agendamento não encontrado' });
-    res.status(204).send();
-  });
-});
+  res.json({ id: req.params.id, data_inicio, hora_inicio, data_fim, hora_fim, cuidadora_id });
+}));
 
-const PORT = 3000;
+app.delete('/api/schedules/batch', asyncHandler(async (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: 'Lista de IDs invalida' });
+  }
 
-// --------------------------------------------------------------------
-// HOlidays API
-// --------------------------------------------------------------------
-app.get('/api/holidays', (req, res) => {
-  db.all('SELECT * FROM feriados ORDER BY data ASC', [], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(rows);
-  });
-});
+  await db.query('DELETE FROM agendamentos WHERE id = ANY($1::text[])', [ids]);
+  res.status(204).send();
+}));
 
-app.post('/api/holidays', (req, res) => {
+app.delete('/api/schedules/:id', asyncHandler(async (req, res) => {
+  const result = await db.query('DELETE FROM agendamentos WHERE id = $1', [req.params.id]);
+  if (result.rowCount === 0) {
+    return res.status(404).json({ error: 'Agendamento nao encontrado' });
+  }
+
+  res.status(204).send();
+}));
+
+app.get('/api/holidays', asyncHandler(async (_req, res) => {
+  const result = await db.query('SELECT * FROM feriados ORDER BY data ASC');
+  res.json(result.rows);
+}));
+
+app.post('/api/holidays', asyncHandler(async (req, res) => {
   const { data, nome } = req.body;
-  if (!data || !nome) return res.status(400).json({ error: 'Data e Nome são obrigatórios' });
-  const id = uuidv4();
-  db.run('INSERT INTO feriados (id, data, nome) VALUES (?, ?, ?)', [id, data, nome], function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    res.status(201).json({ id, data, nome });
-  });
-});
-
-app.delete('/api/holidays/:id', (req, res) => {
-  db.run('DELETE FROM feriados WHERE id = ?', req.params.id, function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ message: 'Apagado com sucesso' });
-  });
-});
-
-// --------------------------------------------------------------------
-// Usuarios / Auth API
-// --------------------------------------------------------------------
-app.post('/api/login', (req, res) => {
-  const { username, password } = req.body;
-  db.get('SELECT id, username, role, residencia_ids, cuidadora_ids FROM usuarios WHERE username = ? AND password = ?', [username, password], (err, user) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (!user) return res.status(401).json({ error: 'Credenciais inválidas' });
-    user.residencia_ids = JSON.parse(user.residencia_ids || '[]');
-    user.cuidadora_ids = JSON.parse(user.cuidadora_ids || '[]');
-    res.json(user);
-  });
-});
-
-app.get('/api/users', (req, res) => {
-  db.all('SELECT id, username, role, residencia_ids, cuidadora_ids FROM usuarios', [], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(rows.map(r => ({ 
-      ...r, 
-      residencia_ids: JSON.parse(r.residencia_ids || '[]'),
-      cuidadora_ids: JSON.parse(r.cuidadora_ids || '[]')
-    })));
-  });
-});
-
-app.post('/api/users', (req, res) => {
-  const { username, password, role, residencia_ids, cuidadora_ids } = req.body;
-  if (!username || !password || !role) return res.status(400).json({ error: 'Faltam dados' });
-  const id = uuidv4();
-  db.run('INSERT INTO usuarios (id, username, password, role, residencia_ids, cuidadora_ids) VALUES (?, ?, ?, ?, ?, ?)', 
-    [id, username, password, role, JSON.stringify(residencia_ids || []), JSON.stringify(cuidadora_ids || [])], 
-    function(err) {
-      if (err) return res.status(500).json({ error: err.message });
-      res.status(201).json({ id, username, role, residencia_ids, cuidadora_ids });
-    }
-  );
-});
-
-app.put('/api/users/:id', (req, res) => {
-  const { username, password, role, residencia_ids, cuidadora_ids } = req.body;
-  const residenciasJson = JSON.stringify(residencia_ids || []);
-  const cuidadorasJson = JSON.stringify(cuidadora_ids || []);
-  if (password) { // Update with password
-    db.run('UPDATE usuarios SET username = ?, password = ?, role = ?, residencia_ids = ?, cuidadora_ids = ? WHERE id = ?', 
-      [username, password, role, residenciasJson, cuidadorasJson, req.params.id], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'Atualizado com sucesso' });
-    });
-  } else { // Update without password
-    db.run('UPDATE usuarios SET username = ?, role = ?, residencia_ids = ?, cuidadora_ids = ? WHERE id = ?', 
-      [username, role, residenciasJson, cuidadorasJson, req.params.id], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'Atualizado com sucesso' });
-    });
+  if (!data || !nome) {
+    return res.status(400).json({ error: 'Data e nome sao obrigatorios' });
   }
-});
 
-app.delete('/api/users/:id', (req, res) => {
-  db.run('DELETE FROM usuarios WHERE id = ?', req.params.id, function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ message: 'Apagado' });
-  });
-});
+  const id = uuidv4();
+  await db.query('INSERT INTO feriados (id, data, nome) VALUES ($1, $2, $3)', [id, data, nome]);
+  res.status(201).json({ id, data, nome });
+}));
 
-if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
+app.delete('/api/holidays/:id', asyncHandler(async (req, res) => {
+  await db.query('DELETE FROM feriados WHERE id = $1', [req.params.id]);
+  res.json({ message: 'Apagado com sucesso' });
+}));
+
+app.post('/api/login', asyncHandler(async (req, res) => {
+  const { username, password } = req.body;
+  const result = await db.query(
+    `
+      SELECT id, username, role, residencia_ids, cuidadora_ids
+      FROM usuarios
+      WHERE username = $1 AND password = $2
+      LIMIT 1
+    `,
+    [username, password]
+  );
+
+  const user = result.rows[0];
+  if (!user) {
+    return res.status(401).json({ error: 'Credenciais invalidas' });
+  }
+
+  res.json({
+    ...user,
+    residencia_ids: parseJsonArray(user.residencia_ids),
+    cuidadora_ids: parseJsonArray(user.cuidadora_ids),
   });
+}));
+
+app.get('/api/users', asyncHandler(async (_req, res) => {
+  const result = await db.query(
+    'SELECT id, username, role, residencia_ids, cuidadora_ids FROM usuarios ORDER BY username ASC'
+  );
+
+  res.json(
+    result.rows.map((user) => ({
+      ...user,
+      residencia_ids: parseJsonArray(user.residencia_ids),
+      cuidadora_ids: parseJsonArray(user.cuidadora_ids),
+    }))
+  );
+}));
+
+app.post('/api/users', asyncHandler(async (req, res) => {
+  const { username, password, role, residencia_ids, cuidadora_ids } = req.body;
+  if (!username || !password || !role) {
+    return res.status(400).json({ error: 'Faltam dados' });
+  }
+
+  const id = uuidv4();
+  await db.query(
+    `
+      INSERT INTO usuarios (id, username, password, role, residencia_ids, cuidadora_ids)
+      VALUES ($1, $2, $3, $4, $5, $6)
+    `,
+    [id, username, password, role, JSON.stringify(residencia_ids || []), JSON.stringify(cuidadora_ids || [])]
+  );
+
+  res.status(201).json({ id, username, role, residencia_ids, cuidadora_ids });
+}));
+
+app.put('/api/users/:id', asyncHandler(async (req, res) => {
+  const { username, password, role, residencia_ids, cuidadora_ids } = req.body;
+  const residenciaIdsJson = JSON.stringify(residencia_ids || []);
+  const cuidadoraIdsJson = JSON.stringify(cuidadora_ids || []);
+
+  if (password) {
+    await db.query(
+      `
+        UPDATE usuarios
+        SET username = $1, password = $2, role = $3, residencia_ids = $4, cuidadora_ids = $5
+        WHERE id = $6
+      `,
+      [username, password, role, residenciaIdsJson, cuidadoraIdsJson, req.params.id]
+    );
+  } else {
+    await db.query(
+      `
+        UPDATE usuarios
+        SET username = $1, role = $2, residencia_ids = $3, cuidadora_ids = $4
+        WHERE id = $5
+      `,
+      [username, role, residenciaIdsJson, cuidadoraIdsJson, req.params.id]
+    );
+  }
+
+  res.json({ message: 'Atualizado com sucesso' });
+}));
+
+app.delete('/api/users/:id', asyncHandler(async (req, res) => {
+  await db.query('DELETE FROM usuarios WHERE id = $1', [req.params.id]);
+  res.json({ message: 'Apagado' });
+}));
+
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
+  db.ready
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(`Servidor rodando na porta ${PORT}`);
+      });
+    })
+    .catch((error) => {
+      console.error('Falha ao inicializar o banco:', error);
+      process.exit(1);
+    });
 }
 
 module.exports = app;

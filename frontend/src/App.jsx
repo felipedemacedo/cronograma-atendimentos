@@ -145,6 +145,7 @@ function App() {
   useEffect(() => {
     setLoadedCount(INITIAL_SCHEDULE_BATCH);
     setIsSchedulesIncrementLoading(false);
+    setSelectedSchedules([]);
   }, [filterSchedMonth, filterSchedResidencia, filterSchedCaregiver]);
 
   useEffect(() => {
@@ -385,11 +386,15 @@ function App() {
   };
 
   const toggleAllSchedules = () => {
-    if (selectedSchedules.length === schedules.length) {
-      setSelectedSchedules([]); // Deselecionar tudo
-    } else {
-      setSelectedSchedules(schedules.map(s => s.id)); // Selecionar todos os carregados
+    const filteredIds = filteredSchedulesList.map(s => s.id);
+
+    if (filteredIds.length === 0) {
+      setSelectedSchedules([]);
+      return;
     }
+
+    const allFilteredSelected = filteredIds.every(id => selectedSchedules.includes(id));
+    setSelectedSchedules(allFilteredSelected ? [] : filteredIds);
   };
 
   // --- Holidays Handlers ---

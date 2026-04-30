@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const db = require('./database');
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 const uuidv4 = () => crypto.randomUUID();
 

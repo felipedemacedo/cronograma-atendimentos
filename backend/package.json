@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "start:local": "set PORT=3001&& set USE_MEMORY_DB=true&& node server.js",
     "test": "jest --detectOpenHandles"
   },
   "keywords": [],

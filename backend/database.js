@@ -72,7 +72,7 @@ const schemaStatements = [
 ];
 
 function createPool() {
-  if (process.env.NODE_ENV === 'test' && !process.env.DATABASE_URL) {
+  if ((process.env.NODE_ENV === 'test' || process.env.USE_MEMORY_DB === 'true') && !process.env.DATABASE_URL) {
     const memoryDb = newDb();
     const adapter = memoryDb.adapters.createPg();
     return new adapter.Pool();

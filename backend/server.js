@@ -89,6 +89,15 @@ function normalizeDebtPayload(body) {
   };
 }
 
+function normalizeAdvancePayload(body) {
+  const valor = Number(body.valor);
+  return {
+    cuidadora_id: body.cuidadora_id,
+    mes: body.mes,
+    valor: Number.isFinite(valor) ? Math.max(0, valor) : 0,
+  };
+}
+
 async function replaceCaregiverResidences(client, caregiverId, configs) {
   await client.query('DELETE FROM cuidadora_residencia WHERE cuidadora_id = $1', [caregiverId]);
 
@@ -453,6 +462,49 @@ app.delete('/api/debts/:id', asyncHandler(async (req, res) => {
   }
 
   res.status(204).send();
+}));
+
+app.get('/api/advances', asyncHandler(async (_req, res) => {
+  const result = await db.query(
+    `
+      SELECT a.*, c.nome AS cuidadora_nome
+      FROM adiantamentos a
+      JOIN cuidadoras c ON a.cuidadora_id = c.id
+      ORDER BY a.mes DESC, c.nome ASC
+    `
+  );
+
+  res.json(result.rows);
+}));
+
+app.post('/api/advances', asyncHandler(async (req, res) => {
+  const payload = normalizeAdvancePayload(req.body);
+  if (!payload.cuidadora_id || !payload.mes) {
+    return res.status(400).json({ error: 'Prestador e mes sao obrigatorios' });
+  }
+
+  if (payload.valor <= 0) {
+    await db.query(
+      'DELETE FROM adiantamentos WHERE cuidadora_id = $1 AND mes = $2',
+      [payload.cuidadora_id, payload.mes]
+    );
+    return res.json({ ...payload, valor: 0 });
+  }
+
+  const id = uuidv4();
+  const result = await db.query(
+    `
+      INSERT INTO adiantamentos (id, cuidadora_id, mes, valor)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (cuidadora_id, mes) DO UPDATE
+      SET valor = EXCLUDED.valor,
+          updated_at = EXCLUDED.updated_at
+      RETURNING *
+    `,
+    [id, payload.cuidadora_id, payload.mes, payload.valor]
+  );
+
+  res.json(result.rows[0]);
 }));
 
 app.get('/api/schedules', asyncHandler(async (_req, res) => {

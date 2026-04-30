@@ -79,6 +79,21 @@ const schemaStatements = [
     ADD COLUMN IF NOT EXISTS mes_inicio_desconto TEXT DEFAULT NULL
   `,
   `
+    CREATE TABLE IF NOT EXISTS adiantamentos (
+      id TEXT PRIMARY KEY,
+      cuidadora_id TEXT NOT NULL,
+      mes TEXT NOT NULL,
+      valor DOUBLE PRECISION NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (cuidadora_id) REFERENCES cuidadoras(id) ON DELETE CASCADE
+    )
+  `,
+  `
+    CREATE UNIQUE INDEX IF NOT EXISTS adiantamentos_cuidadora_mes_idx
+    ON adiantamentos (cuidadora_id, mes)
+  `,
+  `
     CREATE TABLE IF NOT EXISTS usuarios (
       id TEXT PRIMARY KEY,
       username TEXT UNIQUE NOT NULL,

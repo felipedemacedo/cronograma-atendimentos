@@ -137,6 +137,25 @@ describe('API Principais Funcionalidades', () => {
     expect(listDebts.body.some((debt) => debt.id === createDebt.body.id)).toBe(true);
   });
 
+  it('Permite salvar adiantamento mensal para um prestador', async () => {
+    const saveAdvance = await request(app).post('/api/advances').send({
+      cuidadora_id: cuidadoraId,
+      mes: '2024-02',
+      valor: 125.5,
+    });
+
+    expect(saveAdvance.statusCode).toEqual(200);
+    expect(Number(saveAdvance.body.valor)).toEqual(125.5);
+
+    const listAdvances = await request(app).get('/api/advances');
+    expect(listAdvances.statusCode).toEqual(200);
+    expect(listAdvances.body.some((advance) => (
+      advance.cuidadora_id === cuidadoraId &&
+      advance.mes === '2024-02' &&
+      Number(advance.valor) === 125.5
+    ))).toBe(true);
+  });
+
   it('Impede criar agendamento com conflito de horario para o mesmo prestador em outra residencia', async () => {
     const res = await request(app).post('/api/schedules/batch').send({
       schedules: [

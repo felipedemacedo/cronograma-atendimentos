@@ -36,6 +36,7 @@ function App() {
   const [schedules, setSchedules] = useState([]);
   const [holidays, setHolidays] = useState([]);
   const [debts, setDebts] = useState([]);
+  const [advances, setAdvances] = useState([]);
 
   // Modals status
   const [isResidenceModalOpen, setIsResidenceModalOpen] = useState(false);
@@ -120,12 +121,13 @@ function App() {
     isFetchingRef.current = true;
 
     try {
-      const [resRes, cgRes, schedRes, holRes, debtRes] = await Promise.all([
+      const [resRes, cgRes, schedRes, holRes, debtRes, advanceRes] = await Promise.all([
         api.get('/residences'),
         api.get('/caregivers'),
         api.get('/schedules'),
         api.get('/holidays'),
-        api.get('/debts')
+        api.get('/debts'),
+        api.get('/advances')
       ]);
 
       setResidences(prev => isSameArray(prev, resRes.data) ? prev : resRes.data);
@@ -133,6 +135,7 @@ function App() {
       setSchedules(prev => isSameArray(prev, schedRes.data) ? prev : schedRes.data);
       setHolidays(prev => isSameArray(prev, holRes.data) ? prev : holRes.data);
       setDebts(prev => isSameArray(prev, debtRes.data) ? prev : debtRes.data);
+      setAdvances(prev => isSameArray(prev, advanceRes.data) ? prev : advanceRes.data);
     } catch (error) {
       console.error('Erro ao buscar dados:', error);
     } finally {
@@ -449,6 +452,17 @@ function App() {
     }
   };
 
+  const handleSaveAdvance = async (payload) => {
+    try {
+      await api.post('/advances', payload);
+      showNotice('Adiantamento salvo com sucesso.', 'success');
+      fetchData();
+    } catch (err) {
+      console.error('Erro ao salvar adiantamento:', err);
+      alert(getApiErrorMessage(err, 'Não foi possível salvar o adiantamento.'));
+    }
+  };
+
   // Helpers UI
   const formatDisplayDate = (dStr) => {
     const parts = dStr.split('-');
@@ -574,6 +588,7 @@ function App() {
 
   const visibleCaregiverIds = new Set(userCaregivers.map(c => c.id));
   const userDebts = debts.filter(debt => visibleCaregiverIds.has(debt.cuidadora_id));
+  const userAdvances = advances.filter(advance => visibleCaregiverIds.has(advance.cuidadora_id));
 
   // Apply visibility restrictions to schedules natively for the calendar tab
   const userSchedules = schedules.filter(s => {
@@ -720,8 +735,10 @@ function App() {
           schedules={userSchedules}
           residences={userResidences}
           debts={userDebts}
+          advances={userAdvances}
           holidays={holidays}
           currentEnvDate={currentEnvDate}
+          onSaveAdvance={handleSaveAdvance}
         />
       ) : activeTab === 'holidays' && !isVisualizador ? (
         <HolidaysView 

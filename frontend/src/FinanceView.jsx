@@ -1,11 +1,12 @@
-import React, { useState, useMemo } from 'react';
-import { DollarSign, Filter } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { DollarSign, Filter, Save } from 'lucide-react';
 import { calculateShiftFinancials, formatCurrency } from './financialCalculations';
 import { getDebtSummaryForMonth } from './debtCalculations';
 
-export default function FinanceView({ schedules, residences, debts, holidays, currentEnvDate }) {
+export default function FinanceView({ schedules, residences, debts, advances = [], holidays, currentEnvDate, onSaveAdvance }) {
   const [selectedMonth, setSelectedMonth] = useState(`${currentEnvDate.getFullYear()}-${String(currentEnvDate.getMonth() + 1).padStart(2, '0')}`);
   const [selectedResidence, setSelectedResidence] = useState('');
+  const [advanceDrafts, setAdvanceDrafts] = useState({});
   
   // Calculate Finances
   const reportData = useMemo(() => {
@@ -48,15 +49,79 @@ export default function FinanceView({ schedules, residences, debts, holidays, cu
         debts.filter(debt => debt.cuidadora_id === caregiverTotal.id),
         selectedMonth
       );
+      const advance = advances.find(item => item.cuidadora_id === caregiverTotal.id && item.mes === selectedMonth);
+
       caregiverTotal.debtDiscountTotal = debtSummary.deductionTotal;
-      caregiverTotal.netTotal = Math.max(0, caregiverTotal.totalCost - debtSummary.deductionTotal);
+      caregiverTotal.baseNetTotal = Math.max(0, caregiverTotal.totalCost - debtSummary.deductionTotal);
+      caregiverTotal.advanceTotal = Number(advance?.valor) || 0;
+      caregiverTotal.netTotal = Math.max(0, caregiverTotal.baseNetTotal - caregiverTotal.advanceTotal);
     });
 
     return Object.values(caregiverTotals).sort((a, b) => b.netTotal - a.netTotal);
 
-  }, [schedules, selectedMonth, selectedResidence, holidays, debts]);
+  }, [schedules, selectedMonth, selectedResidence, holidays, debts, advances]);
 
   const overallTotal = reportData.reduce((acc, curr) => acc + curr.netTotal, 0);
+
+  const getSuggestedAdvance = (caregiver) => (caregiver.baseNetTotal * 0.25).toFixed(2);
+
+  const getAdvanceDraft = (caregiver) => {
+    const savedValue = caregiver.advanceTotal || 0;
+    const draft = advanceDrafts[caregiver.id];
+
+    if (draft?.month === selectedMonth && draft?.savedValue === savedValue) {
+      return draft;
+    }
+
+    return {
+      checked: savedValue > 0,
+      value: savedValue > 0 ? String(savedValue) : '',
+      month: selectedMonth,
+      savedValue,
+    };
+  };
+
+  const handleAdvanceToggle = (caregiver) => {
+    setAdvanceDrafts(prev => {
+      const current = getAdvanceDraft(caregiver);
+      const shouldCheck = !current.checked;
+
+      return {
+        ...prev,
+        [caregiver.id]: {
+          checked: shouldCheck,
+          value: shouldCheck ? (current.value || getSuggestedAdvance(caregiver)) : '0',
+          month: selectedMonth,
+          savedValue: caregiver.advanceTotal || 0,
+        },
+      };
+    });
+  };
+
+  const handleAdvanceChange = (caregiver, value) => {
+    setAdvanceDrafts(prev => ({
+      ...prev,
+      [caregiver.id]: {
+        ...getAdvanceDraft(caregiver),
+        checked: true,
+        value,
+        month: selectedMonth,
+        savedValue: caregiver.advanceTotal || 0,
+      },
+    }));
+  };
+
+  const handleAdvanceSave = async (caregiver) => {
+    const draft = getAdvanceDraft(caregiver);
+    const normalizedValue = Number(String(draft.value || '0').replace(',', '.'));
+    const value = draft.checked && Number.isFinite(normalizedValue) ? Math.max(0, normalizedValue) : 0;
+
+    await onSaveAdvance({
+      cuidadora_id: caregiver.id,
+      mes: selectedMonth,
+      valor: value,
+    });
+  };
 
   return (
     <div>
@@ -104,7 +169,10 @@ export default function FinanceView({ schedules, residences, debts, holidays, cu
             <h3>Nenhum plantão agendado para o mês selecionado.</h3>
           </div>
         ) : (
-          reportData.map(c => (
+          reportData.map(c => {
+            const advanceDraft = getAdvanceDraft(c);
+
+            return (
             <div key={c.id} className="card">
               <h3 style={{ fontSize: '1.2rem', color: 'white', marginBottom: '8px' }}>{c.nome}</h3>
               <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '0.9rem' }}>{c.shiftsCount} plantões no mês</p>
@@ -130,6 +198,62 @@ export default function FinanceView({ schedules, residences, debts, holidays, cu
                     <span style={{ color: 'var(--danger)', fontWeight: '500' }}>- {formatCurrency(c.debtDiscountTotal)}</span>
                   </div>
                 )}
+                {c.advanceTotal > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
+                    <span>Adiantamento Pago:</span>
+                    <span style={{ color: 'var(--danger)', fontWeight: '500' }}>- {formatCurrency(c.advanceTotal)}</span>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: '14px', marginBottom: '16px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-main)', fontWeight: '600', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={advanceDraft.checked}
+                    onChange={() => handleAdvanceToggle(c)}
+                  />
+                  Valor antecipado pago
+                </label>
+
+                {advanceDraft.checked && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '10px', alignItems: 'end', marginTop: '12px' }}>
+                    <label style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                      Valor do adiantamento
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        className="form-control"
+                        value={advanceDraft.value || ''}
+                        onChange={(event) => handleAdvanceChange(c, event.target.value)}
+                        style={{ width: '100%', marginTop: '6px' }}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      onClick={() => handleAdvanceSave(c)}
+                      disabled={!onSaveAdvance}
+                      title="Salvar adiantamento"
+                      style={{ height: '45px', paddingInline: '14px' }}
+                    >
+                      <Save size={16} />
+                      Salvar
+                    </button>
+                  </div>
+                )}
+                {!advanceDraft.checked && c.advanceTotal > 0 && (
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => handleAdvanceSave(c)}
+                    disabled={!onSaveAdvance}
+                    style={{ marginTop: '12px', width: '100%' }}
+                  >
+                    Salvar sem adiantamento
+                  </button>
+                )}
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
@@ -139,7 +263,8 @@ export default function FinanceView({ schedules, residences, debts, holidays, cu
                 </span>
               </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
 

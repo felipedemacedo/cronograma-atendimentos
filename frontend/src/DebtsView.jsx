@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { CreditCard, Plus, Trash2 } from 'lucide-react';
 import { formatCurrency } from './financialCalculations';
-import { getDebtInstallmentPlan } from './debtCalculations';
+import { addMonths, getDebtInstallmentPlan } from './debtCalculations';
 
 export default function DebtsView({ debts, caregivers, currentEnvDate, onAddDebt, onDeleteDebt }) {
   const defaultMonth = `${currentEnvDate.getFullYear()}-${String(currentEnvDate.getMonth() + 1).padStart(2, '0')}`;
@@ -12,8 +12,12 @@ export default function DebtsView({ debts, caregivers, currentEnvDate, onAddDebt
     forma_pagamento: 'avista',
     quantidade_parcelas: 1,
     percentual_juros: 0,
-    mes_quitacao: defaultMonth,
   });
+
+  const calculatedInstallments = formData.forma_pagamento === 'parcelado'
+    ? Math.max(1, parseInt(formData.quantidade_parcelas, 10) || 1)
+    : 1;
+  const calculatedTargetMonth = addMonths(defaultMonth, calculatedInstallments - 1);
 
   const visibleDebts = useMemo(() => {
     const visibleCaregiverIds = new Set(caregivers.map(c => c.id));
@@ -22,7 +26,11 @@ export default function DebtsView({ debts, caregivers, currentEnvDate, onAddDebt
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    await onAddDebt(formData);
+    await onAddDebt({
+      ...formData,
+      quantidade_parcelas: calculatedInstallments,
+      mes_quitacao: calculatedTargetMonth,
+    });
     setFormData({
       cuidadora_id: '',
       descricao: '',
@@ -30,7 +38,6 @@ export default function DebtsView({ debts, caregivers, currentEnvDate, onAddDebt
       forma_pagamento: 'avista',
       quantidade_parcelas: 1,
       percentual_juros: 0,
-      mes_quitacao: defaultMonth,
     });
   };
 
@@ -113,15 +120,17 @@ export default function DebtsView({ debts, caregivers, currentEnvDate, onAddDebt
           </div>
 
           <div className="form-group">
-            <label htmlFor="debt-target-month">Mês alvo de quitação*</label>
+            <label htmlFor="debt-target-month">Mês alvo de quitação</label>
             <input
               id="debt-target-month"
               className="form-control"
-              required
               type="month"
-              value={formData.mes_quitacao}
-              onChange={e => setFormData({ ...formData, mes_quitacao: e.target.value })}
+              value={calculatedTargetMonth}
+              disabled
             />
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: 0 }}>
+              Calculado automaticamente pela quantidade de parcelas.
+            </p>
           </div>
         </div>
 

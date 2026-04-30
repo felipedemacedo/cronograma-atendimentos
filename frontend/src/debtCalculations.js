@@ -3,6 +3,15 @@ export const monthToIndex = (month) => {
   return year * 12 + monthNumber;
 };
 
+export const indexToMonth = (monthIndex) => {
+  const zeroBasedIndex = monthIndex - 1;
+  const year = Math.floor(zeroBasedIndex / 12);
+  const month = (zeroBasedIndex % 12) + 1;
+  return `${year}-${String(month).padStart(2, '0')}`;
+};
+
+export const addMonths = (month, amount) => indexToMonth(monthToIndex(month) + amount);
+
 export const getDebtTotalWithInterest = (debt) => {
   const baseValue = Number(debt.valor_original) || 0;
   const interestPercent = Number(debt.percentual_juros) || 0;

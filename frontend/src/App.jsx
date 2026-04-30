@@ -175,13 +175,23 @@ function App() {
   }, [caregivers]);
 
   useEffect(() => {
-    if (currentUser?.role === 'usuario_visualizador' && !viewResidencia && residences.length > 0) {
-      const allowedResidences = residences.filter(r => currentUser.residencia_ids?.includes(r.id));
-      if (allowedResidences.length > 0) {
-        setViewResidencia(allowedResidences[0].id);
-      }
+    if (residences.length === 0) return;
+
+    const visibleResidences = caregiverMode
+      ? residences.filter(r => caregiverMode.residencia_ids?.includes(r.id))
+      : (currentUser && currentUser.role !== 'admin_geral')
+        ? residences.filter(r => currentUser.residencia_ids?.includes(r.id))
+        : residences;
+
+    if (visibleResidences.length === 1 && viewResidencia !== visibleResidences[0].id) {
+      setViewResidencia(visibleResidences[0].id);
+      return;
     }
-  }, [currentUser, residences, viewResidencia]);
+
+    if (viewResidencia && visibleResidences.length > 0 && !visibleResidences.some(r => r.id === viewResidencia)) {
+      setViewResidencia('');
+    }
+  }, [caregiverMode, currentUser, residences, viewResidencia]);
 
   const handleLogin = (user) => {
     localStorage.setItem('session', JSON.stringify({ user, timestamp: Date.now() }));

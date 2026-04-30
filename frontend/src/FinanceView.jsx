@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { DollarSign, Filter } from 'lucide-react';
+import { calculateShiftFinancials, formatCurrency } from './financialCalculations';
 
-export default function FinanceView({ schedules, caregivers, residences, holidays, currentEnvDate }) {
+export default function FinanceView({ schedules, residences, holidays, currentEnvDate }) {
   const [selectedMonth, setSelectedMonth] = useState(`${currentEnvDate.getFullYear()}-${String(currentEnvDate.getMonth() + 1).padStart(2, '0')}`);
   const [selectedResidence, setSelectedResidence] = useState('');
   
@@ -31,64 +32,18 @@ export default function FinanceView({ schedules, caregivers, residences, holiday
         };
       }
 
-      const baseRate = s.cuidadora_valor_hora || s.residencia_valor_hora || 10;
-      let isNightBonus = s.residencia_adicional_noturno === 1;
-      let bonusPct = s.residencia_percentual_noturno || 20;
+      const shiftFinancials = calculateShiftFinancials(s, holidays);
 
-      if (s.cuidadora_adicional_noturno !== null && s.cuidadora_adicional_noturno !== undefined) {
-        isNightBonus = s.cuidadora_adicional_noturno === 1;
-        if (isNightBonus) bonusPct = s.cuidadora_percentual_noturno || 20;
-      }
-
-      let isHolidayBonus = s.residencia_adicional_feriado === 1;
-      let holBonusPct = s.residencia_percentual_feriado || 20;
-
-      if (s.cuidadora_adicional_feriado !== null && s.cuidadora_adicional_feriado !== undefined) {
-        isHolidayBonus = s.cuidadora_adicional_feriado === 1;
-        if (isHolidayBonus) holBonusPct = s.cuidadora_percentual_feriado || 20;
-      }
-
-      const year = parseInt(s.data_inicio.split('-')[0], 10);
-      const isShiftHoliday = holidays.some(h => h.data === s.data_inicio || h.data === s.data_inicio.substring(5));
-      const holidayMultiplier = (isShiftHoliday && isHolidayBonus) ? (holBonusPct / 100) : 0;
-
-      const start = new Date(`${s.data_inicio}T${s.hora_inicio}:00`);
-      const end = new Date(`${s.data_fim}T${s.hora_fim}:00`);
-      
-      let normalMinutes = 0;
-      let nightMinutes = 0;
-
-      let current = new Date(start);
-      while(current < end) {
-        const h = current.getHours();
-        if (h >= 22 || h < 5) nightMinutes++;
-        else normalMinutes++;
-        current.setMinutes(current.getMinutes() + 1);
-      }
-
-      const normalHours = normalMinutes / 60;
-      const nightHours = nightMinutes / 60;
-      
-      let shiftCost = normalHours * baseRate * (1 + holidayMultiplier);
-      if (isNightBonus) {
-        shiftCost += nightHours * (baseRate * (1 + (bonusPct / 100) + holidayMultiplier));
-      } else {
-        shiftCost += nightHours * baseRate * (1 + holidayMultiplier);
-      }
-      
-      const transportCost = parseFloat(s.valor_transporte !== null && s.valor_transporte !== undefined ? s.valor_transporte : 9);
-      shiftCost += transportCost;
-
-      caregiverTotals[s.cuidadora_id].totalCost += shiftCost;
-      caregiverTotals[s.cuidadora_id].transportTotal += transportCost;
-      caregiverTotals[s.cuidadora_id].normalHoursTotal += normalHours;
-      caregiverTotals[s.cuidadora_id].nightHoursTotal += nightHours;
+      caregiverTotals[s.cuidadora_id].totalCost += shiftFinancials.totalCost;
+      caregiverTotals[s.cuidadora_id].transportTotal += shiftFinancials.transportCost;
+      caregiverTotals[s.cuidadora_id].normalHoursTotal += shiftFinancials.normalHours;
+      caregiverTotals[s.cuidadora_id].nightHoursTotal += shiftFinancials.nightHours;
       caregiverTotals[s.cuidadora_id].shiftsCount += 1;
     });
 
     return Object.values(caregiverTotals).sort((a, b) => b.totalCost - a.totalCost);
 
-  }, [schedules, selectedMonth, selectedResidence]);
+  }, [schedules, selectedMonth, selectedResidence, holidays]);
 
   const overallTotal = reportData.reduce((acc, curr) => acc + curr.totalCost, 0);
 
@@ -127,7 +82,7 @@ export default function FinanceView({ schedules, caregivers, residences, holiday
       <div className="card" style={{ marginBottom: '32px', textAlign: 'center', background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(16, 185, 129, 0.1))', padding: '32px' }}>
         <h3 style={{ color: 'var(--text-muted)', marginBottom: '8px', fontSize: '1rem' }}>Custo Total Previsto no Mês</h3>
         <p style={{ fontSize: '3rem', fontWeight: 'bold', color: 'white' }}>
-          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(overallTotal)}
+          {formatCurrency(overallTotal)}
         </p>
       </div>
 
@@ -155,7 +110,7 @@ export default function FinanceView({ schedules, caregivers, residences, holiday
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span>Transporte Pago:</span>
                   <span style={{ color: 'white', fontWeight: '500' }}>
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(c.transportTotal)}
+                    {formatCurrency(c.transportTotal)}
                   </span>
                 </div>
               </div>
@@ -163,7 +118,7 @@ export default function FinanceView({ schedules, caregivers, residences, holiday
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
                 <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>Total a Pagar</span>
                 <span style={{ fontSize: '1.4rem', color: 'var(--success)', fontWeight: 'bold' }}>
-                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(c.totalCost)}
+                  {formatCurrency(c.totalCost)}
                 </span>
               </div>
             </div>

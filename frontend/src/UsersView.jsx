@@ -16,7 +16,17 @@ export default function UsersView({ residences, caregivers, currentUser }) {
   };
 
   useEffect(() => {
-    fetchUsers();
+    let isMounted = true;
+
+    api.get('/users')
+      .then((res) => {
+        if (isMounted) setUsers(res.data);
+      })
+      .catch((err) => console.error(err));
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleOpenModal = (user = null) => {
@@ -35,7 +45,10 @@ export default function UsersView({ residences, caregivers, currentUser }) {
       else await api.post('/users', formData);
       setIsModalOpen(false);
       fetchUsers();
-    } catch (err) { alert('Erro ao salvar usuário'); }
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao salvar usuário');
+    }
   };
 
   const handleDelete = async (id) => {

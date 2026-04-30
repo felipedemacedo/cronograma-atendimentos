@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback, useMemo, startTransition } from 'react';
-import { Plus, Home, MapPin, Edit2, Trash2, Users, UserCheck, CalendarDays, Clock, MonitorPlay, DollarSign, CalendarHeart, Calendar } from 'lucide-react';
+import { Plus, Home, MapPin, Edit2, Trash2, Users, UserCheck, CalendarDays, Clock, MonitorPlay, DollarSign, CalendarHeart, Calendar, FileText } from 'lucide-react';
 import api from './api';
 import CalendarView from './CalendarView';
 import FinanceView from './FinanceView';
 import HolidaysView from './HolidaysView';
 import LoginView from './LoginView';
+import ReportsView from './ReportsView';
 import UsersView from './UsersView';
 
 function App() {
@@ -17,7 +18,7 @@ function App() {
       try {
         const session = JSON.parse(stored);
         if (Date.now() - session.timestamp < 60 * 60 * 1000) return session.user;
-      } catch (error) {
+      } catch {
         localStorage.removeItem('session');
       }
     }
@@ -25,7 +26,7 @@ function App() {
   });
 
   const [caregiverMode, setCaregiverMode] = useState(null);
-  const [activeTab, setActiveTab] = useState('calendar'); // 'residences', 'caregivers', 'schedules', 'calendar', 'finance', 'holidays', 'users'
+  const [activeTab, setActiveTab] = useState('calendar'); // 'residences', 'caregivers', 'schedules', 'calendar', 'finance', 'reports', 'holidays', 'users'
 
   // Data states
   const [residences, setResidences] = useState([]);
@@ -562,6 +563,9 @@ function App() {
             <button onClick={() => setActiveTab('calendar')} className="btn-secondary" style={{ background: activeTab === 'calendar' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'calendar' ? 'var(--primary)' : 'var(--border)' }}>
               <MonitorPlay size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Calendário
             </button>
+            <button onClick={() => setActiveTab('reports')} className="btn-secondary" style={{ background: activeTab === 'reports' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'reports' ? 'var(--primary)' : 'var(--border)' }}>
+              <FileText size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Relatórios
+            </button>
             {!isVisualizador && (
               <>
                 <button onClick={() => setActiveTab('schedules')} className="btn-secondary" style={{ background: activeTab === 'schedules' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'schedules' ? 'var(--primary)' : 'var(--border)' }}>
@@ -604,10 +608,18 @@ function App() {
           onEditSchedule={() => {}}
           onDeleteSchedule={() => {}}
         />
+      ) : activeTab === 'reports' ? (
+        <ReportsView
+          schedules={userSchedules}
+          caregivers={userCaregivers}
+          holidays={holidays}
+          currentEnvDate={currentEnvDate}
+          onCopied={(message) => showNotice(message, 'success')}
+          onCopyError={(message) => showNotice(message, 'error')}
+        />
       ) : activeTab === 'finance' && !isVisualizador ? (
         <FinanceView
           schedules={userSchedules}
-          caregivers={userCaregivers}
           residences={userResidences}
           holidays={holidays}
           currentEnvDate={currentEnvDate}

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Clipboard, FileText } from 'lucide-react';
 import { calculateShiftFinancials, formatCurrency } from './financialCalculations';
+import { getDebtSummaryForMonth } from './debtCalculations';
 
 const WEEKDAY_LABELS = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB'];
 const MONTH_NAMES = [
@@ -68,19 +69,23 @@ const buildReportText = (report) => {
   const shiftLines = report.days.length > 0
     ? report.days.map(day => `${day.weekday}, ${formatDateBr(day.date)}, ${day.shifts.join(' & ')}`).join('\n')
     : 'Nenhum plantão encontrado para este mês.';
+  const debtText = report.debtDiscountTotal > 0
+    ? `\n\nNeste mês também vou descontar ${formatCurrency(report.debtDiscountTotal)} referente ao combinado da dívida. Depois deste desconto, fica um saldo aproximado de ${formatCurrency(report.remainingDebtTotal)} ainda em aberto, tudo com calma e bem certinho.`
+    : '';
 
   return `${getGreeting()} ${report.name}, para o mês de ${getMonthTitle(report.month)} temos:
 
 ${shiftLines}
 
 somando um total de ${formatCurrency(report.laborTotal)} + ${formatCurrency(report.transportTotal)} (passagem ${formatCurrency(report.passengerTicketValue)}) = VALOR TOTAL DE ${formatCurrency(report.total)}
+${debtText}
 
 se não puder algum destes dias e horários ou se achar algo errado me avise que ajustamos ok
 
 Vou adiantar ${formatCurrency(report.advance)} (25%) no início do mês e deixo o restante para o final do mês, tudo bem?`;
 };
 
-export default function ReportsView({ schedules, caregivers, holidays, currentEnvDate, onCopied, onCopyError }) {
+export default function ReportsView({ schedules, caregivers, debts, holidays, currentEnvDate, onCopied, onCopyError }) {
   const [selectedMonth, setSelectedMonth] = useState(`${currentEnvDate.getFullYear()}-${String(currentEnvDate.getMonth() + 1).padStart(2, '0')}`);
 
   const reports = useMemo(() => {
@@ -117,6 +122,13 @@ export default function ReportsView({ schedules, caregivers, holidays, currentEn
       const passengerTicketValue = caregiverSchedules.length > 0
         ? (totals.transportTotal / caregiverSchedules.length) / 2
         : 0;
+      const debtSummary = totals.total > 0
+        ? getDebtSummaryForMonth(
+          debts.filter(debt => debt.cuidadora_id === caregiver.id),
+          selectedMonth
+        )
+        : { deductionTotal: 0, remainingAfterMonth: 0 };
+      const netTotal = Math.max(0, totals.total - debtSummary.deductionTotal);
 
       return {
         id: caregiver.id,
@@ -125,11 +137,14 @@ export default function ReportsView({ schedules, caregivers, holidays, currentEn
         days: Array.from(daysMap.values()),
         shiftsCount: caregiverSchedules.length,
         passengerTicketValue,
-        advance: totals.total * 0.25,
+        debtDiscountTotal: debtSummary.deductionTotal,
+        remainingDebtTotal: debtSummary.remainingAfterMonth,
+        netTotal,
+        advance: netTotal * 0.25,
         ...totals,
       };
     }).sort((a, b) => a.name.localeCompare(b.name));
-  }, [schedules, caregivers, selectedMonth, holidays]);
+  }, [schedules, caregivers, debts, selectedMonth, holidays]);
 
   const handleCopyReport = async (report) => {
     try {
@@ -193,12 +208,18 @@ export default function ReportsView({ schedules, caregivers, holidays, currentEn
                   <span>Adiantamento 25%:</span>
                   <span style={{ color: 'white', fontWeight: '500' }}>{formatCurrency(report.advance)}</span>
                 </div>
+                {report.debtDiscountTotal > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', gap: '12px' }}>
+                    <span>Desconto dívida:</span>
+                    <span style={{ color: 'var(--danger)', fontWeight: '500' }}>- {formatCurrency(report.debtDiscountTotal)}</span>
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: '16px', gap: '12px' }}>
                 <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>Clique para copiar</span>
                 <span style={{ fontSize: '1.25rem', color: 'var(--success)', fontWeight: 'bold' }}>
-                  {formatCurrency(report.total)}
+                  {formatCurrency(report.netTotal)}
                 </span>
               </div>
             </button>

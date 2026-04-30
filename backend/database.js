@@ -60,6 +60,20 @@ const schemaStatements = [
     )
   `,
   `
+    CREATE TABLE IF NOT EXISTS dividas (
+      id TEXT PRIMARY KEY,
+      cuidadora_id TEXT NOT NULL,
+      descricao TEXT DEFAULT '',
+      valor_original DOUBLE PRECISION NOT NULL,
+      forma_pagamento TEXT NOT NULL DEFAULT 'avista',
+      quantidade_parcelas INTEGER NOT NULL DEFAULT 1,
+      percentual_juros DOUBLE PRECISION NOT NULL DEFAULT 0,
+      mes_quitacao TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (cuidadora_id) REFERENCES cuidadoras(id) ON DELETE CASCADE
+    )
+  `,
+  `
     CREATE TABLE IF NOT EXISTS usuarios (
       id TEXT PRIMARY KEY,
       username TEXT UNIQUE NOT NULL,

@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo, startTransition } from 'react';
-import { Plus, Home, MapPin, Edit2, Trash2, Users, UserCheck, CalendarDays, Clock, MonitorPlay, DollarSign, CalendarHeart, Calendar, FileText } from 'lucide-react';
+import { Plus, Home, MapPin, Edit2, Trash2, Users, UserCheck, CalendarDays, Clock, MonitorPlay, DollarSign, CalendarHeart, Calendar, FileText, CreditCard } from 'lucide-react';
 import api from './api';
 import CalendarView from './CalendarView';
+import DebtsView from './DebtsView';
 import FinanceView from './FinanceView';
 import HolidaysView from './HolidaysView';
 import LoginView from './LoginView';
@@ -27,13 +28,14 @@ function App() {
   });
 
   const [caregiverMode, setCaregiverMode] = useState(null);
-  const [activeTab, setActiveTab] = useState('calendar'); // 'residences', 'caregivers', 'schedules', 'calendar', 'finance', 'reports', 'holidays', 'users'
+  const [activeTab, setActiveTab] = useState('calendar'); // 'residences', 'caregivers', 'schedules', 'calendar', 'finance', 'reports', 'debts', 'holidays', 'users'
 
   // Data states
   const [residences, setResidences] = useState([]);
   const [caregivers, setCaregivers] = useState([]);
   const [schedules, setSchedules] = useState([]);
   const [holidays, setHolidays] = useState([]);
+  const [debts, setDebts] = useState([]);
 
   // Modals status
   const [isResidenceModalOpen, setIsResidenceModalOpen] = useState(false);
@@ -118,17 +120,19 @@ function App() {
     isFetchingRef.current = true;
 
     try {
-      const [resRes, cgRes, schedRes, holRes] = await Promise.all([
+      const [resRes, cgRes, schedRes, holRes, debtRes] = await Promise.all([
         api.get('/residences'),
         api.get('/caregivers'),
         api.get('/schedules'),
-        api.get('/holidays')
+        api.get('/holidays'),
+        api.get('/debts')
       ]);
 
       setResidences(prev => isSameArray(prev, resRes.data) ? prev : resRes.data);
       setCaregivers(prev => isSameArray(prev, cgRes.data) ? prev : cgRes.data);
       setSchedules(prev => isSameArray(prev, schedRes.data) ? prev : schedRes.data);
       setHolidays(prev => isSameArray(prev, holRes.data) ? prev : holRes.data);
+      setDebts(prev => isSameArray(prev, debtRes.data) ? prev : debtRes.data);
     } catch (error) {
       console.error('Erro ao buscar dados:', error);
     } finally {
@@ -411,6 +415,30 @@ function App() {
     } catch (err) { console.error('Erro:', err); }
   };
 
+  const handleAddDebt = async (payload) => {
+    try {
+      await api.post('/debts', payload);
+      showNotice('Dívida cadastrada com sucesso.', 'success');
+      fetchData();
+    } catch (err) {
+      console.error('Erro ao cadastrar dívida:', err);
+      alert(getApiErrorMessage(err, 'Não foi possível cadastrar a dívida.'));
+    }
+  };
+
+  const handleDeleteDebt = async (id) => {
+    if (!window.confirm('Excluir esta dívida?')) return;
+
+    try {
+      await api.delete(`/debts/${id}`);
+      showNotice('Dívida excluída com sucesso.', 'success');
+      fetchData();
+    } catch (err) {
+      console.error('Erro ao excluir dívida:', err);
+      alert(getApiErrorMessage(err, 'Não foi possível excluir a dívida.'));
+    }
+  };
+
   // Helpers UI
   const formatDisplayDate = (dStr) => {
     const parts = dStr.split('-');
@@ -534,6 +562,9 @@ function App() {
         ? caregivers.filter(c => c.residencia_ids?.some(r => userResidences.some(ur => ur.id === r)))
         : caregivers;
 
+  const visibleCaregiverIds = new Set(userCaregivers.map(c => c.id));
+  const userDebts = debts.filter(debt => visibleCaregiverIds.has(debt.cuidadora_id));
+
   // Apply visibility restrictions to schedules natively for the calendar tab
   const userSchedules = schedules.filter(s => {
     if (caregiverMode && s.cuidadora_id !== caregiverMode.id) return false;
@@ -606,6 +637,9 @@ function App() {
                 <button onClick={() => setActiveTab('finance')} className="btn-secondary" style={{ background: activeTab === 'finance' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'finance' ? 'var(--primary)' : 'var(--border)' }}>
                   <DollarSign size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Financeiro
                 </button>
+                <button onClick={() => setActiveTab('debts')} className="btn-secondary" style={{ background: activeTab === 'debts' ? 'rgba(255,255,255,0.1)' : 'transparent', borderColor: activeTab === 'debts' ? 'var(--primary)' : 'var(--border)' }}>
+                  <CreditCard size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Dívidas
+                </button>
               </>
             )}
             {!isVisualizador && (
@@ -644,15 +678,25 @@ function App() {
         <ReportsView
           schedules={userSchedules}
           caregivers={userCaregivers}
+          debts={userDebts}
           holidays={holidays}
           currentEnvDate={currentEnvDate}
           onCopied={(message) => showNotice(message, 'success')}
           onCopyError={(message) => showNotice(message, 'error')}
         />
+      ) : activeTab === 'debts' && !isVisualizador ? (
+        <DebtsView
+          debts={userDebts}
+          caregivers={userCaregivers}
+          currentEnvDate={currentEnvDate}
+          onAddDebt={handleAddDebt}
+          onDeleteDebt={handleDeleteDebt}
+        />
       ) : activeTab === 'finance' && !isVisualizador ? (
         <FinanceView
           schedules={userSchedules}
           residences={userResidences}
+          debts={userDebts}
           holidays={holidays}
           currentEnvDate={currentEnvDate}
         />

@@ -115,6 +115,26 @@ describe('API Principais Funcionalidades', () => {
     expect(newSchedule.valor_transporte).toEqual(10);
   });
 
+  it('Permite cadastrar e listar divida para um prestador', async () => {
+    const createDebt = await request(app).post('/api/debts').send({
+      cuidadora_id: cuidadoraId,
+      descricao: 'Adiantamento',
+      valor_original: 300,
+      forma_pagamento: 'parcelado',
+      quantidade_parcelas: 3,
+      percentual_juros: 10,
+      mes_quitacao: '2024-04',
+    });
+
+    expect(createDebt.statusCode).toEqual(201);
+    expect(createDebt.body.forma_pagamento).toEqual('parcelado');
+    expect(createDebt.body.quantidade_parcelas).toEqual(3);
+
+    const listDebts = await request(app).get('/api/debts');
+    expect(listDebts.statusCode).toEqual(200);
+    expect(listDebts.body.some((debt) => debt.id === createDebt.body.id)).toBe(true);
+  });
+
   it('Impede criar agendamento com conflito de horario para o mesmo prestador em outra residencia', async () => {
     const res = await request(app).post('/api/schedules/batch').send({
       schedules: [

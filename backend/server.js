@@ -70,6 +70,24 @@ function serializeCaregiverResponse(id, payload) {
   };
 }
 
+function normalizeDebtPayload(body) {
+  const valorOriginal = Number(body.valor_original);
+  const formaPagamento = body.forma_pagamento === 'parcelado' ? 'parcelado' : 'avista';
+  const quantidadeParcelas = formaPagamento === 'parcelado'
+    ? Math.max(1, parseInt(body.quantidade_parcelas, 10) || 1)
+    : 1;
+
+  return {
+    cuidadora_id: body.cuidadora_id,
+    descricao: body.descricao || '',
+    valor_original: Number.isFinite(valorOriginal) ? valorOriginal : 0,
+    forma_pagamento: formaPagamento,
+    quantidade_parcelas: quantidadeParcelas,
+    percentual_juros: Number.isFinite(Number(body.percentual_juros)) ? Number(body.percentual_juros) : 0,
+    mes_quitacao: body.mes_quitacao,
+  };
+}
+
 async function replaceCaregiverResidences(client, caregiverId, configs) {
   await client.query('DELETE FROM cuidadora_residencia WHERE cuidadora_id = $1', [caregiverId]);
 
@@ -379,6 +397,57 @@ app.delete('/api/caregivers/:id', asyncHandler(async (req, res) => {
   const result = await db.query('DELETE FROM cuidadoras WHERE id = $1', [req.params.id]);
   if (result.rowCount === 0) {
     return res.status(404).json({ error: 'Cuidadora nao encontrada' });
+  }
+
+  res.status(204).send();
+}));
+
+app.get('/api/debts', asyncHandler(async (_req, res) => {
+  const result = await db.query(
+    `
+      SELECT d.*, c.nome AS cuidadora_nome
+      FROM dividas d
+      JOIN cuidadoras c ON d.cuidadora_id = c.id
+      ORDER BY d.mes_quitacao ASC, c.nome ASC
+    `
+  );
+
+  res.json(result.rows);
+}));
+
+app.post('/api/debts', asyncHandler(async (req, res) => {
+  const payload = normalizeDebtPayload(req.body);
+  if (!payload.cuidadora_id || !payload.mes_quitacao || payload.valor_original <= 0) {
+    return res.status(400).json({ error: 'Prestador, valor e mes de quitacao sao obrigatorios' });
+  }
+
+  const id = uuidv4();
+  await db.query(
+    `
+      INSERT INTO dividas (
+        id, cuidadora_id, descricao, valor_original, forma_pagamento,
+        quantidade_parcelas, percentual_juros, mes_quitacao
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `,
+    [
+      id,
+      payload.cuidadora_id,
+      payload.descricao,
+      payload.valor_original,
+      payload.forma_pagamento,
+      payload.quantidade_parcelas,
+      payload.percentual_juros,
+      payload.mes_quitacao,
+    ]
+  );
+
+  res.status(201).json({ id, ...payload });
+}));
+
+app.delete('/api/debts/:id', asyncHandler(async (req, res) => {
+  const result = await db.query('DELETE FROM dividas WHERE id = $1', [req.params.id]);
+  if (result.rowCount === 0) {
+    return res.status(404).json({ error: 'Divida nao encontrada' });
   }
 
   res.status(204).send();

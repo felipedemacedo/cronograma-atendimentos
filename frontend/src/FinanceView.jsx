@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { DollarSign, Filter } from 'lucide-react';
 import { calculateShiftFinancials, formatCurrency } from './financialCalculations';
+import { getDebtSummaryForMonth } from './debtCalculations';
 
-export default function FinanceView({ schedules, residences, holidays, currentEnvDate }) {
+export default function FinanceView({ schedules, residences, debts, holidays, currentEnvDate }) {
   const [selectedMonth, setSelectedMonth] = useState(`${currentEnvDate.getFullYear()}-${String(currentEnvDate.getMonth() + 1).padStart(2, '0')}`);
   const [selectedResidence, setSelectedResidence] = useState('');
   
@@ -26,6 +27,7 @@ export default function FinanceView({ schedules, residences, holidays, currentEn
           nome: s.cuidadora_nome,
           totalCost: 0,
           transportTotal: 0,
+          debtDiscountTotal: 0,
           normalHoursTotal: 0,
           nightHoursTotal: 0,
           shiftsCount: 0
@@ -41,11 +43,20 @@ export default function FinanceView({ schedules, residences, holidays, currentEn
       caregiverTotals[s.cuidadora_id].shiftsCount += 1;
     });
 
-    return Object.values(caregiverTotals).sort((a, b) => b.totalCost - a.totalCost);
+    Object.values(caregiverTotals).forEach((caregiverTotal) => {
+      const debtSummary = getDebtSummaryForMonth(
+        debts.filter(debt => debt.cuidadora_id === caregiverTotal.id),
+        selectedMonth
+      );
+      caregiverTotal.debtDiscountTotal = debtSummary.deductionTotal;
+      caregiverTotal.netTotal = Math.max(0, caregiverTotal.totalCost - debtSummary.deductionTotal);
+    });
 
-  }, [schedules, selectedMonth, selectedResidence, holidays]);
+    return Object.values(caregiverTotals).sort((a, b) => b.netTotal - a.netTotal);
 
-  const overallTotal = reportData.reduce((acc, curr) => acc + curr.totalCost, 0);
+  }, [schedules, selectedMonth, selectedResidence, holidays, debts]);
+
+  const overallTotal = reportData.reduce((acc, curr) => acc + curr.netTotal, 0);
 
   return (
     <div>
@@ -80,7 +91,7 @@ export default function FinanceView({ schedules, residences, holidays, currentEn
       </div>
 
       <div className="card" style={{ marginBottom: '32px', textAlign: 'center', background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(16, 185, 129, 0.1))', padding: '32px' }}>
-        <h3 style={{ color: 'var(--text-muted)', marginBottom: '8px', fontSize: '1rem' }}>Custo Total Previsto no Mês</h3>
+        <h3 style={{ color: 'var(--text-muted)', marginBottom: '8px', fontSize: '1rem' }}>Total Líquido Previsto no Mês</h3>
         <p style={{ fontSize: '3rem', fontWeight: 'bold', color: 'white' }}>
           {formatCurrency(overallTotal)}
         </p>
@@ -113,12 +124,18 @@ export default function FinanceView({ schedules, residences, holidays, currentEn
                     {formatCurrency(c.transportTotal)}
                   </span>
                 </div>
+                {c.debtDiscountTotal > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
+                    <span>Desconto de Dívidas:</span>
+                    <span style={{ color: 'var(--danger)', fontWeight: '500' }}>- {formatCurrency(c.debtDiscountTotal)}</span>
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
-                <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>Total a Pagar</span>
+                <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>Líquido a Pagar</span>
                 <span style={{ fontSize: '1.4rem', color: 'var(--success)', fontWeight: 'bold' }}>
-                  {formatCurrency(c.totalCost)}
+                  {formatCurrency(c.netTotal)}
                 </span>
               </div>
             </div>

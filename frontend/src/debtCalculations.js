@@ -1,0 +1,72 @@
+export const monthToIndex = (month) => {
+  const [year, monthNumber] = month.split('-').map(Number);
+  return year * 12 + monthNumber;
+};
+
+export const getDebtTotalWithInterest = (debt) => {
+  const baseValue = Number(debt.valor_original) || 0;
+  const interestPercent = Number(debt.percentual_juros) || 0;
+  return baseValue * (1 + (interestPercent / 100));
+};
+
+export const getDebtInstallmentPlan = (debt) => {
+  const total = getDebtTotalWithInterest(debt);
+  const installments = debt.forma_pagamento === 'parcelado'
+    ? Math.max(1, Number(debt.quantidade_parcelas) || 1)
+    : 1;
+  const targetIndex = monthToIndex(debt.mes_quitacao);
+  const startIndex = targetIndex - installments + 1;
+  const monthlyValue = total / installments;
+
+  return {
+    total,
+    installments,
+    targetIndex,
+    startIndex,
+    monthlyValue,
+  };
+};
+
+export const getDebtMonthStatus = (debt, selectedMonth) => {
+  if (!debt?.mes_quitacao || !selectedMonth) {
+    return {
+      applies: false,
+      deduction: 0,
+      remainingAfterMonth: getDebtTotalWithInterest(debt || {}),
+      installmentNumber: 0,
+      installments: 0,
+    };
+  }
+
+  const plan = getDebtInstallmentPlan(debt);
+  const selectedIndex = monthToIndex(selectedMonth);
+  const applies = selectedIndex >= plan.startIndex && selectedIndex <= plan.targetIndex;
+  const paidInstallments = Math.min(
+    plan.installments,
+    Math.max(0, selectedIndex - plan.startIndex + 1)
+  );
+
+  return {
+    applies,
+    deduction: applies ? plan.monthlyValue : 0,
+    remainingAfterMonth: Math.max(0, plan.total - (plan.monthlyValue * paidInstallments)),
+    installmentNumber: applies ? paidInstallments : 0,
+    installments: plan.installments,
+    total: plan.total,
+  };
+};
+
+export const getDebtSummaryForMonth = (debts, selectedMonth) => {
+  const details = (debts || [])
+    .map((debt) => ({
+      ...debt,
+      monthStatus: getDebtMonthStatus(debt, selectedMonth),
+    }))
+    .filter((debt) => debt.monthStatus.applies);
+
+  return {
+    details,
+    deductionTotal: details.reduce((acc, debt) => acc + debt.monthStatus.deduction, 0),
+    remainingAfterMonth: details.reduce((acc, debt) => acc + debt.monthStatus.remainingAfterMonth, 0),
+  };
+};

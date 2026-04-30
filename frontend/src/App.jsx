@@ -590,6 +590,19 @@ function App() {
 
   const canEditSchedules = isGeral || isAdminResidencial;
 
+  const handleOpenScheduleModal = () => {
+    if (userResidences.length === 1) {
+      const onlyResidenceId = userResidences[0].id;
+      setScheduleFormData(prev => ({
+        ...prev,
+        residencia_id: onlyResidenceId,
+        cuidadora_id: prev.residencia_id === onlyResidenceId ? prev.cuidadora_id : '',
+      }));
+    }
+
+    setIsScheduleModalOpen(true);
+  };
+
   return (
     <div className="container">
       {uiNotice && (
@@ -752,7 +765,7 @@ function App() {
                   <button className="btn-secondary" onClick={toggleAllSchedules}>
                     Selecionar Todos
                   </button>
-                  <button className="btn-primary" onClick={() => setIsScheduleModalOpen(true)}>
+                  <button className="btn-primary" onClick={handleOpenScheduleModal}>
                     <Plus size={20} /> Gerar Lote
                   </button>
                 </>

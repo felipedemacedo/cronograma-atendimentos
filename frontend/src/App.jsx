@@ -61,7 +61,7 @@ function App() {
     residencia_id: '',
     cuidadora_id: '',
     month: '',
-    type: 'impares', // impares, pares, especificos
+    type: 'impares', // impares, pares, sem_concorrencia, especificos
     specificDays: '',
     hora_inicio: '19:00',
     hora_fim: '07:00'
@@ -260,13 +260,43 @@ function App() {
     return d.toISOString().split('T')[0];
   };
 
+  const schedulesOverlap = (firstSchedule, secondSchedule) => {
+    const firstStart = new Date(`${firstSchedule.data_inicio}T${firstSchedule.hora_inicio}:00`);
+    const firstEnd = new Date(`${firstSchedule.data_fim}T${firstSchedule.hora_fim}:00`);
+    const secondStart = new Date(`${secondSchedule.data_inicio}T${secondSchedule.hora_inicio}:00`);
+    const secondEnd = new Date(`${secondSchedule.data_fim}T${secondSchedule.hora_fim}:00`);
+
+    return firstStart < secondEnd && firstEnd > secondStart;
+  };
+
+  const buildScheduleCandidate = (day, year, month, formData) => {
+    const dataInicioUnformatted = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const spansNextDay = formData.hora_fim <= formData.hora_inicio; // ex: 19:00 as 07:00 ou 07:00 as 07:00
+
+    return {
+      residencia_id: formData.residencia_id,
+      cuidadora_id: formData.cuidadora_id,
+      data_inicio: dataInicioUnformatted,
+      hora_inicio: formData.hora_inicio,
+      data_fim: spansNextDay ? getNextDayStr(dataInicioUnformatted) : dataInicioUnformatted,
+      hora_fim: formData.hora_fim
+    };
+  };
+
+  const hasResidenceScheduleCompetition = (candidate) => (
+    schedules.some(schedule => (
+      schedule.residencia_id === candidate.residencia_id &&
+      schedulesOverlap(candidate, schedule)
+    ))
+  );
+
   const getApiErrorMessage = (error, fallbackMessage) => (
     normalizeMessage(error?.response?.data?.error || error?.response?.data || error?.message, fallbackMessage)
   );
 
   const handleScheduleSubmit = async (e) => {
     e.preventDefault();
-    const { residencia_id, cuidadora_id, month, type, specificDays, hora_inicio, hora_fim } = scheduleFormData;
+    const { residencia_id, cuidadora_id, month, type, specificDays } = scheduleFormData;
     if (!residencia_id || !cuidadora_id || !month) return alert("Preencha os campos obrigatórios");
 
     const [yearStr, monthStr] = month.split('-');
@@ -279,6 +309,8 @@ function App() {
       for (let d = 1; d <= daysInMonth; d += 2) targetDays.push(d);
     } else if (type === 'pares') {
       for (let d = 2; d <= daysInMonth; d += 2) targetDays.push(d);
+    } else if (type === 'sem_concorrencia') {
+      for (let d = 1; d <= daysInMonth; d += 1) targetDays.push(d);
     } else if (type === 'especificos') {
       targetDays = specificDays.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n >= 1 && n <= daysInMonth);
     }
@@ -296,19 +328,13 @@ function App() {
 
     if (targetDays.length === 0) return alert("Nenhum dia válido gerado! Verifique os dias inseridos ou a indisponibilidade do prestador nesta data.");
 
-    const spansNextDay = hora_fim <= hora_inicio; // ex: 19:00 as 07:00 ou 07:00 as 07:00
+    let batch = targetDays.map(day => buildScheduleCandidate(day, y, m, scheduleFormData));
 
-    const batch = targetDays.map(day => {
-      const dataInicioUnformatted = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      return {
-        residencia_id,
-        cuidadora_id,
-        data_inicio: dataInicioUnformatted,
-        hora_inicio: hora_inicio,
-        data_fim: spansNextDay ? getNextDayStr(dataInicioUnformatted) : dataInicioUnformatted,
-        hora_fim: hora_fim
-      };
-    });
+    if (type === 'sem_concorrencia') {
+      batch = batch.filter(candidate => !hasResidenceScheduleCompetition(candidate));
+    }
+
+    if (batch.length === 0) return alert("Nenhum dia sem concorrência encontrado para o mês, horário e prestador selecionados.");
 
     try {
       await api.post('/schedules/batch', { schedules: batch });
@@ -1083,6 +1109,7 @@ function App() {
                 <select id="schedule-type" name="scheduleType" className="form-control" value={scheduleFormData.type} onChange={e => setScheduleFormData({ ...scheduleFormData, type: e.target.value })}>
                   <option value="impares">Todos os dias Ímpares</option>
                   <option value="pares">Todos os dias Pares</option>
+                  <option value="sem_concorrencia">Todas as datas sem concorrência</option>
                   <option value="especificos">Dias Específicos</option>
                 </select>
               </div>
@@ -1104,7 +1131,7 @@ function App() {
                   <input id="schedule-hora-fim" name="scheduleHoraFim" required type="time" className="form-control" value={scheduleFormData.hora_fim} onChange={e => setScheduleFormData({ ...scheduleFormData, hora_fim: e.target.value })} />
                 </div>
               </div>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>*Se a hora de término for menor que a de início (ex: 19h as 07h), o sistema considerará o término no dia seguinte automaticamente.</p>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>*Se a hora de término for menor ou igual à de início (ex: 19h as 07h), o sistema considerará o término no dia seguinte automaticamente.</p>
 
               <div className="flex-gap" style={{ justifyContent: 'flex-end', marginTop: '32px' }}><button type="button" className="btn-secondary" onClick={() => setIsScheduleModalOpen(false)}>Cancelar</button><button type="submit" className="btn-primary">Gerar Lote</button></div>
             </form>

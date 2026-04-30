@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import api from './api';
+import { normalizeMessage } from './messageUtils';
 
 export default function LoginView({ onLogin }) {
   const [username, setUsername] = useState('');
@@ -13,7 +14,7 @@ export default function LoginView({ onLogin }) {
       const user = res.data;
       onLogin(user);
     } catch (err) {
-      setError(err?.response?.data?.error || err.message);
+      setError(normalizeMessage(err?.response?.data?.error || err?.response?.data || err?.message, 'Erro ao entrar.'));
     }
   };
 

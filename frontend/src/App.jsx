@@ -7,6 +7,7 @@ import HolidaysView from './HolidaysView';
 import LoginView from './LoginView';
 import ReportsView from './ReportsView';
 import UsersView from './UsersView';
+import { normalizeMessage } from './messageUtils';
 
 function App() {
   const INITIAL_SCHEDULE_BATCH = 24;
@@ -93,13 +94,13 @@ function App() {
   const showNotice = useCallback((message, type = 'info') => {
     setUiNotice({
       id: Date.now(),
-      message,
+      message: normalizeMessage(message, 'Ocorreu um erro inesperado.'),
       type,
     });
   }, []);
 
   const alert = useCallback((message) => {
-    showNotice(String(message), 'error');
+    showNotice(message, 'error');
   }, [showNotice]);
 
   const isSameArray = (prev, next) => {
@@ -260,7 +261,7 @@ function App() {
   };
 
   const getApiErrorMessage = (error, fallbackMessage) => (
-    error?.response?.data?.error || fallbackMessage
+    normalizeMessage(error?.response?.data?.error || error?.response?.data || error?.message, fallbackMessage)
   );
 
   const handleScheduleSubmit = async (e) => {

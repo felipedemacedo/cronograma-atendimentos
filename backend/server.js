@@ -84,6 +84,7 @@ function normalizeDebtPayload(body) {
     forma_pagamento: formaPagamento,
     quantidade_parcelas: quantidadeParcelas,
     percentual_juros: Number.isFinite(Number(body.percentual_juros)) ? Number(body.percentual_juros) : 0,
+    mes_inicio_desconto: body.mes_inicio_desconto || null,
     mes_quitacao: body.mes_quitacao,
   };
 }
@@ -426,8 +427,8 @@ app.post('/api/debts', asyncHandler(async (req, res) => {
     `
       INSERT INTO dividas (
         id, cuidadora_id, descricao, valor_original, forma_pagamento,
-        quantidade_parcelas, percentual_juros, mes_quitacao
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        quantidade_parcelas, percentual_juros, mes_inicio_desconto, mes_quitacao
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     `,
     [
       id,
@@ -437,6 +438,7 @@ app.post('/api/debts', asyncHandler(async (req, res) => {
       payload.forma_pagamento,
       payload.quantidade_parcelas,
       payload.percentual_juros,
+      payload.mes_inicio_desconto,
       payload.mes_quitacao,
     ]
   );

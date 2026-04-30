@@ -70,7 +70,7 @@ const buildReportText = (report) => {
     ? report.days.map(day => `${day.weekday}, ${formatDateBr(day.date)}, ${day.shifts.join(' & ')}`).join('\n')
     : 'Nenhum plantão encontrado para este mês.';
   const debtText = report.debtDiscountTotal > 0
-    ? `\n\nNeste mês também vou descontar ${formatCurrency(report.debtDiscountTotal)} referente ao combinado da dívida. Depois deste desconto, fica um saldo aproximado de ${formatCurrency(report.remainingDebtTotal)} ainda em aberto, tudo com calma e bem certinho.`
+    ? `\n\nSobre a dívida combinada, o objetivo é ir quitando aos poucos de forma tranquila. O valor total combinado é de ${formatCurrency(report.totalDebtValue)}. Até este mês, considerando o desconto atual, já ficam abatidos ${formatCurrency(report.paidDebtThroughMonth)}. Neste mês do relatório será descontado ${formatCurrency(report.debtDiscountTotal)}, restando aproximadamente ${formatCurrency(report.remainingDebtTotal)} para quitar.`
     : '';
 
   return `${getGreeting()} ${report.name}, para o mês de ${getMonthTitle(report.month)} temos:
@@ -127,7 +127,7 @@ export default function ReportsView({ schedules, caregivers, debts, holidays, cu
           debts.filter(debt => debt.cuidadora_id === caregiver.id),
           selectedMonth
         )
-        : { deductionTotal: 0, remainingAfterMonth: 0 };
+        : { deductionTotal: 0, remainingAfterMonth: 0, totalDebtValue: 0, paidThroughMonth: 0 };
       const netTotal = Math.max(0, totals.total - debtSummary.deductionTotal);
 
       return {
@@ -139,6 +139,8 @@ export default function ReportsView({ schedules, caregivers, debts, holidays, cu
         passengerTicketValue,
         debtDiscountTotal: debtSummary.deductionTotal,
         remainingDebtTotal: debtSummary.remainingAfterMonth,
+        totalDebtValue: debtSummary.totalDebtValue,
+        paidDebtThroughMonth: debtSummary.paidThroughMonth,
         netTotal,
         advance: netTotal * 0.25,
         ...totals,

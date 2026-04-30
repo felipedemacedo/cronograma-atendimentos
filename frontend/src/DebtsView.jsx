@@ -12,12 +12,15 @@ export default function DebtsView({ debts, caregivers, currentEnvDate, onAddDebt
     forma_pagamento: 'avista',
     quantidade_parcelas: 1,
     percentual_juros: 0,
+    mes_inicio_desconto: '',
   });
 
   const calculatedInstallments = formData.forma_pagamento === 'parcelado'
     ? Math.max(1, parseInt(formData.quantidade_parcelas, 10) || 1)
     : 1;
-  const calculatedTargetMonth = addMonths(defaultMonth, calculatedInstallments - 1);
+  const calculatedStartMonth = formData.mes_inicio_desconto || defaultMonth;
+  const calculatedTargetMonth = addMonths(calculatedStartMonth, calculatedInstallments - 1);
+  const estimatedTotal = (Number(formData.valor_original) || 0) * (1 + ((Number(formData.percentual_juros) || 0) / 100));
 
   const visibleDebts = useMemo(() => {
     const visibleCaregiverIds = new Set(caregivers.map(c => c.id));
@@ -29,6 +32,7 @@ export default function DebtsView({ debts, caregivers, currentEnvDate, onAddDebt
     await onAddDebt({
       ...formData,
       quantidade_parcelas: calculatedInstallments,
+      mes_inicio_desconto: calculatedStartMonth,
       mes_quitacao: calculatedTargetMonth,
     });
     setFormData({
@@ -38,6 +42,7 @@ export default function DebtsView({ debts, caregivers, currentEnvDate, onAddDebt
       forma_pagamento: 'avista',
       quantidade_parcelas: 1,
       percentual_juros: 0,
+      mes_inicio_desconto: '',
     });
   };
 
@@ -120,6 +125,20 @@ export default function DebtsView({ debts, caregivers, currentEnvDate, onAddDebt
           </div>
 
           <div className="form-group">
+            <label htmlFor="debt-start-month">Iniciar descontos em</label>
+            <input
+              id="debt-start-month"
+              className="form-control"
+              type="month"
+              value={formData.mes_inicio_desconto}
+              onChange={e => setFormData({ ...formData, mes_inicio_desconto: e.target.value })}
+            />
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: 0 }}>
+              Opcional. Se ficar vazio, começa no mês atual.
+            </p>
+          </div>
+
+          <div className="form-group">
             <label htmlFor="debt-target-month">Mês alvo de quitação</label>
             <input
               id="debt-target-month"
@@ -127,12 +146,19 @@ export default function DebtsView({ debts, caregivers, currentEnvDate, onAddDebt
               type="month"
               value={calculatedTargetMonth}
               disabled
+              style={{ opacity: 0.72, cursor: 'not-allowed', background: 'rgba(255,255,255,0.015)' }}
             />
             <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: 0 }}>
-              Calculado automaticamente pela quantidade de parcelas.
+              Calculado automaticamente pelo início e pela quantidade de parcelas.
             </p>
           </div>
         </div>
+
+        {Number(formData.percentual_juros) > 0 && (
+          <div style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '0.95rem' }}>
+            Valor final estimado a retornar: <strong style={{ color: 'white' }}>{formatCurrency(estimatedTotal)}</strong>
+          </div>
+        )}
 
         <div className="form-group">
           <label htmlFor="debt-description">Descrição</label>
@@ -185,6 +211,10 @@ export default function DebtsView({ debts, caregivers, currentEnvDate, onAddDebt
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', gap: '12px' }}>
                     <span>Parcelamento:</span>
                     <strong>{plan.installments}x de {formatCurrency(plan.monthlyValue)}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', gap: '12px' }}>
+                    <span>Começa em:</span>
+                    <strong>{debt.mes_inicio_desconto || plan.startMonth || debt.mes_quitacao}</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
                     <span>Quita em:</span>

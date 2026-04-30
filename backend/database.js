@@ -68,10 +68,15 @@ const schemaStatements = [
       forma_pagamento TEXT NOT NULL DEFAULT 'avista',
       quantidade_parcelas INTEGER NOT NULL DEFAULT 1,
       percentual_juros DOUBLE PRECISION NOT NULL DEFAULT 0,
+      mes_inicio_desconto TEXT DEFAULT NULL,
       mes_quitacao TEXT NOT NULL,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (cuidadora_id) REFERENCES cuidadoras(id) ON DELETE CASCADE
     )
+  `,
+  `
+    ALTER TABLE dividas
+    ADD COLUMN IF NOT EXISTS mes_inicio_desconto TEXT DEFAULT NULL
   `,
   `
     CREATE TABLE IF NOT EXISTS usuarios (

@@ -123,12 +123,14 @@ describe('API Principais Funcionalidades', () => {
       forma_pagamento: 'parcelado',
       quantidade_parcelas: 3,
       percentual_juros: 10,
+      mes_inicio_desconto: '2024-02',
       mes_quitacao: '2024-04',
     });
 
     expect(createDebt.statusCode).toEqual(201);
     expect(createDebt.body.forma_pagamento).toEqual('parcelado');
     expect(createDebt.body.quantidade_parcelas).toEqual(3);
+    expect(createDebt.body.mes_inicio_desconto).toEqual('2024-02');
 
     const listDebts = await request(app).get('/api/debts');
     expect(listDebts.statusCode).toEqual(200);

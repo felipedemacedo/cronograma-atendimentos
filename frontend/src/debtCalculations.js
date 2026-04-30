@@ -24,7 +24,9 @@ export const getDebtInstallmentPlan = (debt) => {
     ? Math.max(1, Number(debt.quantidade_parcelas) || 1)
     : 1;
   const targetIndex = monthToIndex(debt.mes_quitacao);
-  const startIndex = targetIndex - installments + 1;
+  const startIndex = debt.mes_inicio_desconto
+    ? monthToIndex(debt.mes_inicio_desconto)
+    : targetIndex - installments + 1;
   const monthlyValue = total / installments;
 
   return {
@@ -32,6 +34,7 @@ export const getDebtInstallmentPlan = (debt) => {
     installments,
     targetIndex,
     startIndex,
+    startMonth: indexToMonth(startIndex),
     monthlyValue,
   };
 };
@@ -42,6 +45,7 @@ export const getDebtMonthStatus = (debt, selectedMonth) => {
       applies: false,
       deduction: 0,
       remainingAfterMonth: getDebtTotalWithInterest(debt || {}),
+      paidThroughMonth: 0,
       installmentNumber: 0,
       installments: 0,
     };
@@ -59,6 +63,7 @@ export const getDebtMonthStatus = (debt, selectedMonth) => {
     applies,
     deduction: applies ? plan.monthlyValue : 0,
     remainingAfterMonth: Math.max(0, plan.total - (plan.monthlyValue * paidInstallments)),
+    paidThroughMonth: Math.min(plan.total, plan.monthlyValue * paidInstallments),
     installmentNumber: applies ? paidInstallments : 0,
     installments: plan.installments,
     total: plan.total,
@@ -76,6 +81,8 @@ export const getDebtSummaryForMonth = (debts, selectedMonth) => {
   return {
     details,
     deductionTotal: details.reduce((acc, debt) => acc + debt.monthStatus.deduction, 0),
+    totalDebtValue: details.reduce((acc, debt) => acc + debt.monthStatus.total, 0),
+    paidThroughMonth: details.reduce((acc, debt) => acc + debt.monthStatus.paidThroughMonth, 0),
     remainingAfterMonth: details.reduce((acc, debt) => acc + debt.monthStatus.remainingAfterMonth, 0),
   };
 };

@@ -102,8 +102,12 @@ async function initializeDatabase() {
   await pool.query(
     `
       INSERT INTO usuarios (id, username, password, role, residencia_ids, cuidadora_ids)
-      SELECT $1, 'admin', 'admin', 'admin_geral', '[]', '[]'
-      WHERE NOT EXISTS (SELECT 1 FROM usuarios)
+      VALUES ($1, 'admin', '123', 'admin_geral', '[]', '[]')
+      ON CONFLICT (username) DO UPDATE
+      SET password = EXCLUDED.password,
+          role = EXCLUDED.role,
+          residencia_ids = EXCLUDED.residencia_ids,
+          cuidadora_ids = EXCLUDED.cuidadora_ids
     `,
     [crypto.randomUUID()]
   );

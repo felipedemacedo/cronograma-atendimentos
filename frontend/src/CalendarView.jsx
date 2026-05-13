@@ -37,8 +37,10 @@ export default function CalendarView({ schedules, residences, holidays, selected
     // Transform into blocks that don't overflow days
     const blocks = [];
     filteredSchedules.forEach(s => {
-      const startDT = new Date(`${s.data_inicio}T00:00:00`);
-      const endDT = new Date(`${s.data_fim}T00:00:00`);
+      const [sy, sm, sd] = s.data_inicio.split('-').map(Number);
+      const [ey, em, ed] = s.data_fim.split('-').map(Number);
+      const startDT = new Date(sy, sm - 1, sd);
+      const endDT = new Date(ey, em - 1, ed);
       const diffTime = endDT - startDT;
       const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
       
@@ -64,8 +66,7 @@ export default function CalendarView({ schedules, residences, holidays, selected
         
         // Intermediate days
         for (let i = 1; i < diffDays; i++) {
-           const intermediateDate = new Date(startDT);
-           intermediateDate.setDate(startDT.getDate() + i);
+           const intermediateDate = new Date(sy, sm - 1, sd + i);
            const yyyy = intermediateDate.getFullYear();
            const mm = String(intermediateDate.getMonth() + 1).padStart(2, '0');
            const dd = String(intermediateDate.getDate()).padStart(2, '0');

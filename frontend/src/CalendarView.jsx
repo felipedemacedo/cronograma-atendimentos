@@ -37,7 +37,12 @@ export default function CalendarView({ schedules, residences, holidays, selected
     // Transform into blocks that don't overflow days
     const blocks = [];
     filteredSchedules.forEach(s => {
-      if (s.data_inicio === s.data_fim) {
+      const startDT = new Date(`${s.data_inicio}T00:00:00`);
+      const endDT = new Date(`${s.data_fim}T00:00:00`);
+      const diffTime = endDT - startDT;
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 0) {
         blocks.push({
           date: s.data_inicio,
           start: parseTime(s.hora_inicio),
@@ -47,7 +52,7 @@ export default function CalendarView({ schedules, residences, holidays, selected
           original: s
         });
       } else {
-        // Spans midnight, split in two blocks
+        // First day
         blocks.push({
           date: s.data_inicio,
           start: parseTime(s.hora_inicio),
@@ -56,14 +61,38 @@ export default function CalendarView({ schedules, residences, holidays, selected
           color: getColorForId(s.cuidadora_nome),
           original: s
         });
-        blocks.push({
-          date: s.data_fim,
-          start: 0,
-          end: parseTime(s.hora_fim),
-          name: s.cuidadora_nome,
-          color: getColorForId(s.cuidadora_nome),
-          original: s
-        });
+        
+        // Intermediate days
+        for (let i = 1; i < diffDays; i++) {
+           const intermediateDate = new Date(startDT);
+           intermediateDate.setDate(startDT.getDate() + i);
+           const yyyy = intermediateDate.getFullYear();
+           const mm = String(intermediateDate.getMonth() + 1).padStart(2, '0');
+           const dd = String(intermediateDate.getDate()).padStart(2, '0');
+           const dateStr = `${yyyy}-${mm}-${dd}`;
+           
+           blocks.push({
+             date: dateStr,
+             start: 0,
+             end: 24,
+             name: s.cuidadora_nome,
+             color: getColorForId(s.cuidadora_nome),
+             original: s
+           });
+        }
+
+        // Last day
+        const endHour = parseTime(s.hora_fim);
+        if (endHour > 0) {
+          blocks.push({
+            date: s.data_fim,
+            start: 0,
+            end: endHour,
+            name: s.cuidadora_nome,
+            color: getColorForId(s.cuidadora_nome),
+            original: s
+          });
+        }
       }
     });
 

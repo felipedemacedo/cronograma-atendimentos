@@ -6,15 +6,19 @@ export default function LoginView({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
+    setError('');
     try {
       const res = await api.post('/login', { username, password });
       const user = res.data;
       onLogin(user);
     } catch (err) {
       setError(normalizeMessage(err?.response?.data?.error || err?.response?.data || err?.message, 'Erro ao entrar.'));
+      setIsLoading(false);
     }
   };
 
@@ -47,8 +51,8 @@ export default function LoginView({ onLogin }) {
               onChange={e => setPassword(e.target.value)} 
             />
           </div>
-          <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
-            Entrar
+          <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center', opacity: isLoading ? 0.7 : 1 }} disabled={isLoading}>
+            {isLoading ? 'Entrando...' : 'Entrar'}
           </button>
         </form>
       </div>

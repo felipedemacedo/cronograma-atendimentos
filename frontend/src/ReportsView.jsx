@@ -106,17 +106,45 @@ export default function ReportsView({ schedules, caregivers, debts, holidays, cu
       }, { laborTotal: 0, transportTotal: 0, total: 0 });
 
       const daysMap = new Map();
-      caregiverSchedules.forEach((schedule) => {
-        if (!daysMap.has(schedule.data_inicio)) {
-          const date = new Date(`${schedule.data_inicio}T12:00:00`);
-          daysMap.set(schedule.data_inicio, {
-            date: schedule.data_inicio,
+
+      const addShiftToDay = (dateStr, label) => {
+        if (!daysMap.has(dateStr)) {
+          const [y, m, d] = dateStr.split('-').map(Number);
+          const date = new Date(y, m - 1, d);
+          daysMap.set(dateStr, {
+            date: dateStr,
             weekday: WEEKDAY_LABELS[date.getDay()],
             shifts: [],
           });
         }
+        daysMap.get(dateStr).shifts.push(label);
+      };
 
-        daysMap.get(schedule.data_inicio).shifts.push(getShiftLabel(schedule));
+      caregiverSchedules.forEach((schedule) => {
+        const [sy, sm, sd] = schedule.data_inicio.split('-').map(Number);
+        const [ey, em, ed] = schedule.data_fim.split('-').map(Number);
+        const startDT = new Date(sy, sm - 1, sd);
+        const endDT = new Date(ey, em - 1, ed);
+        const diffDays = Math.round((endDT - startDT) / (1000 * 60 * 60 * 24));
+
+        if (diffDays <= 1) {
+          addShiftToDay(schedule.data_inicio, getShiftLabel(schedule));
+        } else {
+          // Multi-day shift (spans across multiple midnights)
+          addShiftToDay(schedule.data_inicio, `PLANTÃO (${formatTime(schedule.hora_inicio)} às 24h)`);
+          
+          for (let i = 1; i < diffDays; i++) {
+             const intermediateDate = new Date(sy, sm - 1, sd + i);
+             const yyyy = intermediateDate.getFullYear();
+             const mm = String(intermediateDate.getMonth() + 1).padStart(2, '0');
+             const dd = String(intermediateDate.getDate()).padStart(2, '0');
+             addShiftToDay(`${yyyy}-${mm}-${dd}`, `PLANTÃO (24h)`);
+          }
+
+          if (schedule.hora_fim !== '00:00') {
+             addShiftToDay(schedule.data_fim, `PLANTÃO (0h às ${formatTime(schedule.hora_fim)})`);
+          }
+        }
       });
 
       const passengerTicketValue = caregiverSchedules.length > 0

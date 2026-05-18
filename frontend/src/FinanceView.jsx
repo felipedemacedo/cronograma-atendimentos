@@ -62,6 +62,8 @@ export default function FinanceView({ schedules, residences, debts, advances = [
   }, [schedules, selectedMonth, selectedResidence, holidays, debts, advances]);
 
   const overallTotal = reportData.reduce((acc, curr) => acc + curr.netTotal, 0);
+  const overallAdvance = reportData.reduce((acc, curr) => acc + curr.advanceTotal, 0);
+  const overallBaseNetTotal = reportData.reduce((acc, curr) => acc + curr.baseNetTotal, 0);
 
   const getSuggestedAdvance = (caregiver) => (caregiver.baseNetTotal * 0.25).toFixed(2);
 
@@ -157,9 +159,15 @@ export default function FinanceView({ schedules, residences, debts, advances = [
 
       <div className="card" style={{ marginBottom: '32px', textAlign: 'center', background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(16, 185, 129, 0.1))', padding: '32px' }}>
         <h3 style={{ color: 'var(--text-muted)', marginBottom: '8px', fontSize: '1rem' }}>Total Líquido Previsto no Mês</h3>
-        <p style={{ fontSize: '3rem', fontWeight: 'bold', color: 'white' }}>
-          {formatCurrency(overallTotal)}
+        <p style={{ fontSize: '3rem', fontWeight: 'bold', color: 'white', marginBottom: '8px' }}>
+          {formatCurrency(overallBaseNetTotal)}
         </p>
+        {overallAdvance > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', color: 'var(--text-muted)', fontSize: '1rem' }}>
+            <span>Já pago neste mês: <strong style={{ color: 'var(--danger)' }}>{formatCurrency(overallAdvance)}</strong></span>
+            <span>Restante a Pagar: <strong style={{ color: 'var(--success)' }}>{formatCurrency(overallTotal)}</strong></span>
+          </div>
+        )}
       </div>
 
       <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>

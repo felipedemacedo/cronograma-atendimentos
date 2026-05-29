@@ -1064,7 +1064,8 @@ function App() {
                   <button className="btn-icon" onClick={() => handleCaregiverDelete(c.id)}><Trash2 size={18} color="var(--danger)" /></button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </>
       ) : activeTab === 'users' && !isVisualizador ? (

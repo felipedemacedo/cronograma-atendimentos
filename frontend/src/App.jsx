@@ -27,9 +27,13 @@ function App() {
     return null;
   });
 
-  const [caregiverMode, setCaregiverMode] = useState(null);
+  const [caregiverModeList, setCaregiverModeList] = useState([]); // Array of caregiver objects for multiple shared link access
+  const caregiverMode = caregiverModeList.length === 1 ? caregiverModeList[0] : null;
+  const isMultiCaregiverMode = caregiverModeList.length > 1;
+
   const [activeTab, setActiveTab] = useState('calendar'); // 'residences', 'caregivers', 'schedules', 'calendar', 'finance', 'reports', 'debts', 'holidays', 'users'
   const [caregiverModalTab, setCaregiverModalTab] = useState('geral'); // 'geral', 'financeiro', 'disponibilidade', 'vinculos'
+  const [selectedCaregiversForLink, setSelectedCaregiversForLink] = useState([]);
 
   // Data states
   const [residences, setResidences] = useState([]);
@@ -169,11 +173,21 @@ function App() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const careId = urlParams.get('caregiver_id');
-    if (careId && caregivers.length > 0) {
-      const found = caregivers.find(c => c.id === careId);
-      if (found) {
-        setCaregiverMode(found);
-        setActiveTab('calendar');
+    const careIdsParam = urlParams.get('caregiver_ids');
+    if (caregivers.length > 0) {
+      if (careIdsParam) {
+        const ids = careIdsParam.split(',');
+        const foundList = caregivers.filter(c => ids.includes(c.id));
+        if (foundList.length > 0) {
+          setCaregiverModeList(foundList);
+          setActiveTab('calendar');
+        }
+      } else if (careId) {
+        const found = caregivers.find(c => c.id === careId);
+        if (found) {
+          setCaregiverModeList([found]);
+          setActiveTab('calendar');
+        }
       }
     }
   }, [caregivers]);
@@ -579,7 +593,7 @@ function App() {
     };
   }, [activeTab, displayedSchedules.length, filteredSchedulesList.length, loadMore]);
 
-  if (!currentUser && !caregiverMode && !new URLSearchParams(window.location.search).get('caregiver_id')) {
+  if (!currentUser && caregiverModeList.length === 0 && !new URLSearchParams(window.location.search).get('caregiver_id') && !new URLSearchParams(window.location.search).get('caregiver_ids')) {
     return <LoginView onLogin={handleLogin} />;
   }
 
@@ -587,14 +601,14 @@ function App() {
   const isAdminResidencial = currentUser?.role === 'admin_residencia';
   const isVisualizador = currentUser?.role === 'usuario_visualizador';
 
-  const userResidences = caregiverMode 
-    ? residences.filter(r => caregiverMode.residencia_ids?.includes(r.id))
+  const userResidences = caregiverModeList.length > 0
+    ? residences.filter(r => caregiverModeList.some(c => c.residencia_ids?.includes(r.id)))
     : (!isGeral && currentUser)
       ? residences.filter(r => currentUser.residencia_ids?.includes(r.id))
       : residences;
 
-  const userCaregivers = caregiverMode
-    ? caregivers.filter(c => c.id === caregiverMode.id)
+  const userCaregivers = caregiverModeList.length > 0
+    ? caregivers.filter(c => caregiverModeList.some(item => item.id === c.id))
     : isVisualizador
       ? caregivers.filter(c => currentUser.cuidadora_ids?.includes(c.id))
       : isAdminResidencial
@@ -607,7 +621,7 @@ function App() {
 
   // Apply visibility restrictions to schedules natively for the calendar tab
   const userSchedules = schedules.filter(s => {
-    if (caregiverMode && s.cuidadora_id !== caregiverMode.id) return false;
+    if (caregiverModeList.length > 0 && !caregiverModeList.some(c => c.id === s.cuidadora_id)) return false;
     if (isVisualizador) {
       if (!currentUser.residencia_ids?.includes(s.residencia_id)) return false;
       if (!currentUser.cuidadora_ids?.includes(s.cuidadora_id)) return false;
@@ -657,7 +671,9 @@ function App() {
         <div>
           <h1>Gestão de Atendimento</h1>
           <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
-            {caregiverMode ? `Acesso Restrito: ${caregiverMode.nome}` : 'Gerencie as residências, prestadores de serviços e seus horários.'}
+            {caregiverModeList.length > 0 
+              ? `Acesso Restrito: ${caregiverModeList.map(c => c.nome).join(', ')}` 
+              : 'Gerencie as residências, prestadores de serviços e seus horários.'}
           </p>
         </div>
         {currentUser && (
@@ -670,7 +686,7 @@ function App() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginBottom: '32px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
-        {caregiverMode ? (
+        {caregiverModeList.length > 0 ? (
           <button className="btn-secondary active" style={{ borderColor: 'var(--primary)', background: 'rgba(255,255,255,0.1)' }}>
             <MonitorPlay size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Meu Calendário
           </button>
@@ -715,7 +731,7 @@ function App() {
         )}
       </div>
 
-      {caregiverMode ? (
+      {caregiverModeList.length > 0 ? (
         <CalendarView
           schedules={userSchedules}
           residences={userResidences}
@@ -929,20 +945,75 @@ function App() {
         </>
       ) : activeTab === 'caregivers' && !isVisualizador ? (
         <>
-          <div className="flex-between" style={{ marginBottom: '24px' }}>
+          <div className="flex-between" style={{ marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
             <h2 style={{ color: 'white' }}>Prestadores de Serviços</h2>
-            <button className="btn-primary" onClick={() => handleOpenCaregiverModal()}>
-              <Plus size={20} /> Nova
-            </button>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                type="button" 
+                className="btn-secondary" 
+                onClick={() => {
+                  if (selectedCaregiversForLink.length === caregivers.length) {
+                    setSelectedCaregiversForLink([]);
+                  } else {
+                    setSelectedCaregiversForLink(caregivers.map(c => c.id));
+                  }
+                }}
+              >
+                {selectedCaregiversForLink.length === caregivers.length ? 'Desmarcar Todos' : 'Marcar Todos'}
+              </button>
+              <button className="btn-primary" onClick={() => handleOpenCaregiverModal()}>
+                <Plus size={20} /> Nova
+              </button>
+            </div>
           </div>
+
+          {/* Batch Access Link Action Bar */}
+          {selectedCaregiversForLink.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(99, 102, 241, 0.1)', border: '1px solid var(--primary)', padding: '16px', borderRadius: '8px', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+              <div style={{ color: 'white' }}>
+                <strong>{selectedCaregiversForLink.length}</strong> {selectedCaregiversForLink.length === 1 ? 'prestador marcado' : 'prestadores marcados'} para o link público
+              </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button type="button" className="btn-secondary" onClick={() => setSelectedCaregiversForLink([])} style={{ padding: '8px 12px' }}>Limpar Seleção</button>
+                <button 
+                  type="button" 
+                  className="btn-primary" 
+                  onClick={() => {
+                    const link = `${window.location.origin}/?caregiver_ids=${selectedCaregiversForLink.join(',')}`;
+                    navigator.clipboard.writeText(link);
+                    showNotice(`Link público copiado: ${link}`, 'success');
+                  }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px' }}
+                >
+                  <MonitorPlay size={16} /> Copiar Link Público Selecionados
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="grid">
-            {caregivers.map(c => (
-              <div key={c.id} className="card" style={{ display: 'flex', flexDirection: 'column' }}>
+            {caregivers.map(c => {
+              const isSelectedForLink = selectedCaregiversForLink.includes(c.id);
+              return (
+              <div key={c.id} className="card" style={{ display: 'flex', flexDirection: 'column', border: isSelectedForLink ? '1px solid var(--primary)' : '1px solid var(--border)' }}>
                 <div style={{ flexGrow: 1 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                    <h3 style={{ margin: 0, color: 'var(--primary)' }}>
-                      {c.nome} {c.regime_clt ? <span style={{fontSize:'0.7rem', background:'var(--warning)', color:'#000', padding:'2px 6px', borderRadius:'12px', marginLeft:'8px', verticalAlign:'middle'}}>Fixo/CLT</span> : null}
-                    </h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={isSelectedForLink} 
+                        onChange={() => {
+                          setSelectedCaregiversForLink(prev => 
+                            prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
+                          );
+                        }}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--primary)' }}
+                        title="Marcar para incluir no link público compartilhado"
+                      />
+                      <h3 style={{ margin: 0, color: 'var(--primary)' }}>
+                        {c.nome} {c.regime_clt ? <span style={{fontSize:'0.7rem', background:'var(--warning)', color:'#000', padding:'2px 6px', borderRadius:'12px', marginLeft:'8px', verticalAlign:'middle'}}>Fixo/CLT</span> : null}
+                      </h3>
+                    </div>
                   </div>
                   <div style={{ marginBottom: '16px' }}>
                     <p style={{ fontSize: '0.9rem', marginBottom: '8px' }}>Atende em:</p>
@@ -1365,7 +1436,7 @@ function App() {
       )}
       {/* System Version */}
       <footer style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', padding: '24px 0', borderTop: '1px solid var(--border)', marginTop: '32px' }}>
-        Sistema de Gestão v1.0.5
+        Sistema de Gestão v1.0.6
       </footer>
     </div>
   );

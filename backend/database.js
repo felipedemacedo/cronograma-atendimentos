@@ -26,7 +26,9 @@ const schemaStatements = [
       percentual_noturno DOUBLE PRECISION DEFAULT NULL,
       regime_clt INTEGER DEFAULT 0,
       adicional_feriado INTEGER DEFAULT NULL,
-      percentual_feriado DOUBLE PRECISION DEFAULT NULL
+      percentual_feriado DOUBLE PRECISION DEFAULT NULL,
+      recebe_adiantamento INTEGER DEFAULT 1,
+      percentual_adiantamento DOUBLE PRECISION DEFAULT 25.0
     )
   `,
   `
@@ -77,6 +79,14 @@ const schemaStatements = [
   `
     ALTER TABLE dividas
     ADD COLUMN IF NOT EXISTS mes_inicio_desconto TEXT DEFAULT NULL
+  `,
+  `
+    ALTER TABLE cuidadoras
+    ADD COLUMN IF NOT EXISTS recebe_adiantamento INTEGER DEFAULT 1
+  `,
+  `
+    ALTER TABLE cuidadoras
+    ADD COLUMN IF NOT EXISTS percentual_adiantamento DOUBLE PRECISION DEFAULT 25.0
   `,
   `
     CREATE TABLE IF NOT EXISTS adiantamentos (

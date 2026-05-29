@@ -52,7 +52,7 @@ function App() {
   const [residenceFormData, setResidenceFormData] = useState({ nome: '', endereco: '', valor_hora: 10, adicional_noturno: false, percentual_noturno: 20, adicional_feriado: false, percentual_feriado: 20 });
 
   const [currentCaregiver, setCurrentCaregiver] = useState(null);
-  const [caregiverFormData, setCaregiverFormData] = useState({ nome: '', residencia_ids: [], residencias_config: [], valor_hora: '', observacao: '', dias_disponiveis: [0,1,2,3,4,5,6], adicional_noturno: '', percentual_noturno: '', adicional_feriado: '', percentual_feriado: '', regime_clt: false });
+  const [caregiverFormData, setCaregiverFormData] = useState({ nome: '', residencia_ids: [], residencias_config: [], valor_hora: '', observacao: '', dias_disponiveis: [0,1,2,3,4,5,6], adicional_noturno: '', percentual_noturno: '', adicional_feriado: '', percentual_feriado: '', regime_clt: false, recebe_adiantamento: true, percentual_adiantamento: 25 });
 
   const WEEKDAYS = [
     { id: 0, label: 'Domingo' }, { id: 1, label: 'Segunda' },
@@ -251,8 +251,10 @@ function App() {
       percentual_noturno: c.percentual_noturno || '',
       adicional_feriado: c.adicional_feriado !== null && c.adicional_feriado !== undefined ? String(c.adicional_feriado) : '',
       percentual_feriado: c.percentual_feriado || '',
-      regime_clt: c.regime_clt || false
-    } : { nome: '', residencia_ids: [], residencias_config: [], valor_hora: '', observacao: '', dias_disponiveis: [0,1,2,3,4,5,6], adicional_noturno: '', percentual_noturno: '', adicional_feriado: '', percentual_feriado: '', regime_clt: false });
+      regime_clt: c.regime_clt || false,
+      recebe_adiantamento: c.recebe_adiantamento !== undefined ? c.recebe_adiantamento : true,
+      percentual_adiantamento: c.percentual_adiantamento !== undefined ? c.percentual_adiantamento : 25
+    } : { nome: '', residencia_ids: [], residencias_config: [], valor_hora: '', observacao: '', dias_disponiveis: [0,1,2,3,4,5,6], adicional_noturno: '', percentual_noturno: '', adicional_feriado: '', percentual_feriado: '', regime_clt: false, recebe_adiantamento: true, percentual_adiantamento: 25 });
     setIsCaregiverModalOpen(true);
   };
   const handleCaregiverSubmit = async (e) => {
@@ -973,6 +975,11 @@ function App() {
                       <strong>Adicional Feriado (Fixo):</strong> {c.adicional_feriado === 1 ? `Sim (+${c.percentual_feriado || 20}%)` : 'Não Aplicar'}
                     </p>
                   )}
+                  {!c.regime_clt && (
+                    <p style={{ marginTop: '4px' }}>
+                      <strong>Adiantamento Salarial:</strong> {c.recebe_adiantamento ? `Sim (${c.percentual_adiantamento !== undefined ? c.percentual_adiantamento : 25}%)` : 'Não'}
+                    </p>
+                  )}
                 </div>
                 <div className="flex-gap" style={{ justifyContent: 'flex-end' }}>
                   <button className="btn-icon" onClick={() => {
@@ -1099,6 +1106,22 @@ function App() {
                     <div className="form-group">
                       <label htmlFor="caregiver-percentual-feriado">Acréscimo do Adicional Feriado Especifico (%) *Mín 20%</label>
                       <input id="caregiver-percentual-feriado" name="caregiverPercentualFeriado" type="number" step="0.1" min="20" required className="form-control" value={caregiverFormData.percentual_feriado} onChange={e => setCaregiverFormData({ ...caregiverFormData, percentual_feriado: e.target.value })} />
+                    </div>
+                  )}
+                  <div className="form-group" style={{ marginBottom: '24px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                      <input type="checkbox" name="caregiverRecebeAdiantamento" style={{ marginRight: '10px', width: '20px', height: '20px', accentColor: 'var(--primary)' }} checked={caregiverFormData.recebe_adiantamento} onChange={e => setCaregiverFormData({ ...caregiverFormData, recebe_adiantamento: e.target.checked })} />
+                      <div>
+                        <strong>Permitir Adiantamento Salarial?</strong>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0, marginTop: '4px', fontWeight: 'normal' }}>Habilita a sugestão e o cálculo de adiantamentos mensais para este profissional.</p>
+                      </div>
+                    </label>
+                  </div>
+
+                  {caregiverFormData.recebe_adiantamento && (
+                    <div className="form-group">
+                      <label htmlFor="caregiver-percentual-adiantamento">Percentual de Adiantamento (%)</label>
+                      <input id="caregiver-percentual-adiantamento" name="caregiverPercentualAdiantamento" type="number" step="0.1" min="0" max="100" required className="form-control" value={caregiverFormData.percentual_adiantamento} onChange={e => setCaregiverFormData({ ...caregiverFormData, percentual_adiantamento: e.target.value })} />
                     </div>
                   )}
                 </>
@@ -1291,7 +1314,7 @@ function App() {
       )}
       {/* System Version */}
       <footer style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', padding: '24px 0', borderTop: '1px solid var(--border)', marginTop: '32px' }}>
-        Sistema de Gestão v1.0.3
+        Sistema de Gestão v1.0.4
       </footer>
     </div>
   );

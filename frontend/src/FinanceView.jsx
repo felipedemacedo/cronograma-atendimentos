@@ -31,7 +31,9 @@ export default function FinanceView({ schedules, residences, debts, advances = [
           debtDiscountTotal: 0,
           normalHoursTotal: 0,
           nightHoursTotal: 0,
-          shiftsCount: 0
+          shiftsCount: 0,
+          recebe_adiantamento: s.cuidadora_recebe_adiantamento !== undefined ? s.cuidadora_recebe_adiantamento === 1 : true,
+          percentual_adiantamento: s.cuidadora_percentual_adiantamento !== undefined ? Number(s.cuidadora_percentual_adiantamento) : 25
         };
       }
 
@@ -65,7 +67,11 @@ export default function FinanceView({ schedules, residences, debts, advances = [
   const overallAdvance = reportData.reduce((acc, curr) => acc + curr.advanceTotal, 0);
   const overallBaseNetTotal = reportData.reduce((acc, curr) => acc + curr.baseNetTotal, 0);
 
-  const getSuggestedAdvance = (caregiver) => (caregiver.baseNetTotal * 0.25).toFixed(2);
+  const getSuggestedAdvance = (caregiver) => {
+    if (!caregiver.recebe_adiantamento) return '0.00';
+    const percent = caregiver.percentual_adiantamento !== undefined ? caregiver.percentual_adiantamento : 25;
+    return (caregiver.baseNetTotal * (percent / 100)).toFixed(2);
+  };
 
   const getAdvanceDraft = (caregiver) => {
     const savedValue = caregiver.advanceTotal || 0;
@@ -214,55 +220,80 @@ export default function FinanceView({ schedules, residences, debts, advances = [
                 )}
               </div>
 
-              <div style={{ borderTop: '1px solid var(--border)', paddingTop: '14px', marginBottom: '16px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-main)', fontWeight: '600', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={advanceDraft.checked}
-                    onChange={() => handleAdvanceToggle(c)}
-                  />
-                  Valor antecipado pago
-                </label>
+              {c.recebe_adiantamento ? (
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '14px', marginBottom: '16px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-main)', fontWeight: '600', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={advanceDraft.checked}
+                      onChange={() => handleAdvanceToggle(c)}
+                    />
+                    Valor antecipado pago
+                  </label>
 
-                {advanceDraft.checked && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '10px', alignItems: 'end', marginTop: '12px' }}>
-                    <label style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                      Valor do adiantamento
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        className="form-control"
-                        value={advanceDraft.value || ''}
-                        onChange={(event) => handleAdvanceChange(c, event.target.value)}
-                        style={{ width: '100%', marginTop: '6px' }}
-                      />
-                    </label>
+                  {advanceDraft.checked && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '10px', alignItems: 'end', marginTop: '12px' }}>
+                      <label style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                        Valor do adiantamento
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="form-control"
+                          value={advanceDraft.value || ''}
+                          onChange={(event) => handleAdvanceChange(c, event.target.value)}
+                          style={{ width: '100%', marginTop: '6px' }}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={() => handleAdvanceSave(c)}
+                        disabled={!onSaveAdvance}
+                        title="Salvar adiantamento"
+                        style={{ height: '45px', paddingInline: '14px' }}
+                      >
+                        <Save size={16} />
+                        Salvar
+                      </button>
+                    </div>
+                  )}
+                  {!advanceDraft.checked && c.advanceTotal > 0 && (
                     <button
                       type="button"
-                      className="btn-primary"
+                      className="btn-secondary"
                       onClick={() => handleAdvanceSave(c)}
                       disabled={!onSaveAdvance}
-                      title="Salvar adiantamento"
-                      style={{ height: '45px', paddingInline: '14px' }}
+                      style={{ marginTop: '12px', width: '100%' }}
                     >
-                      <Save size={16} />
-                      Salvar
+                      Salvar sem adiantamento
                     </button>
-                  </div>
-                )}
-                {!advanceDraft.checked && c.advanceTotal > 0 && (
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => handleAdvanceSave(c)}
-                    disabled={!onSaveAdvance}
-                    style={{ marginTop: '12px', width: '100%' }}
-                  >
-                    Salvar sem adiantamento
-                  </button>
-                )}
-              </div>
+                  )}
+                </div>
+              ) : (
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '14px', marginBottom: '16px', color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic' }}>
+                  Adiantamento desativado nas configurações deste prestador.
+                  {c.advanceTotal > 0 && (
+                    <div style={{ marginTop: '8px' }}>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={async () => {
+                          await onSaveAdvance({
+                            cuidadora_id: c.id,
+                            mes: selectedMonth,
+                            valor: 0,
+                          });
+                        }}
+                        disabled={!onSaveAdvance}
+                        style={{ width: '100%' }}
+                      >
+                        Remover adiantamento registrado ({formatCurrency(c.advanceTotal)})
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
                 <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>Líquido a Pagar</span>

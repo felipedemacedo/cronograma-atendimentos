@@ -73,6 +73,10 @@ const buildReportText = (report) => {
     ? `\n\nSobre a dívida combinada, o objetivo é ir quitando aos poucos de forma tranquila. O valor total combinado é de ${formatCurrency(report.totalDebtValue)}. Até este mês, considerando o desconto atual, já ficam abatidos ${formatCurrency(report.paidDebtThroughMonth)}. Neste mês do relatório será descontado ${formatCurrency(report.debtDiscountTotal)}, restando aproximadamente ${formatCurrency(report.remainingDebtTotal)} para quitar.`
     : '';
 
+  const advanceText = report.recebe_adiantamento
+    ? `\n\nVou adiantar ${formatCurrency(report.advance)} (${report.percentual_adiantamento !== undefined ? report.percentual_adiantamento : 25}%) no início do mês e deixo o restante para o final do mês, tudo bem?`
+    : '';
+
   return `${getGreeting()} ${report.name}, para o mês de ${getMonthTitle(report.month)} temos:
 
 ${shiftLines}
@@ -80,9 +84,7 @@ ${shiftLines}
 somando um total de ${formatCurrency(report.laborTotal)} + ${formatCurrency(report.transportTotal)} (passagem ${formatCurrency(report.passengerTicketValue)}) = VALOR TOTAL DE ${formatCurrency(report.total)}
 ${debtText}
 
-se não puder algum destes dias e horários ou se achar algo errado me avise que ajustamos ok
-
-Vou adiantar ${formatCurrency(report.advance)} (25%) no início do mês e deixo o restante para o final do mês, tudo bem?`;
+se não puder algum destes dias e horários ou se achar algo errado me avise que ajustamos ok${advanceText}`;
 };
 
 export default function ReportsView({ schedules, caregivers, debts, holidays, currentEnvDate, onCopied, onCopyError }) {
@@ -158,6 +160,10 @@ export default function ReportsView({ schedules, caregivers, debts, holidays, cu
         : { deductionTotal: 0, remainingAfterMonth: 0, totalDebtValue: 0, paidThroughMonth: 0 };
       const netTotal = Math.max(0, totals.total - debtSummary.deductionTotal);
 
+      const recebeAdiantamento = caregiver.recebe_adiantamento !== undefined ? caregiver.recebe_adiantamento : true;
+      const percentualAdiantamento = caregiver.percentual_adiantamento !== undefined ? Number(caregiver.percentual_adiantamento) : 25;
+      const advance = recebeAdiantamento ? netTotal * (percentualAdiantamento / 100) : 0;
+
       return {
         id: caregiver.id,
         name: caregiver.nome,
@@ -170,7 +176,9 @@ export default function ReportsView({ schedules, caregivers, debts, holidays, cu
         totalDebtValue: debtSummary.totalDebtValue,
         paidDebtThroughMonth: debtSummary.paidThroughMonth,
         netTotal,
-        advance: netTotal * 0.25,
+        recebe_adiantamento: recebeAdiantamento,
+        percentual_adiantamento: percentualAdiantamento,
+        advance,
         ...totals,
       };
     }).sort((a, b) => a.name.localeCompare(b.name));
@@ -234,12 +242,14 @@ export default function ReportsView({ schedules, caregivers, debts, holidays, cu
                   <span>Transporte:</span>
                   <span style={{ color: 'white', fontWeight: '500' }}>{formatCurrency(report.transportTotal)}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
-                  <span>Adiantamento 25%:</span>
-                  <span style={{ color: 'white', fontWeight: '500' }}>{formatCurrency(report.advance)}</span>
-                </div>
+                {report.recebe_adiantamento && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', gap: '12px' }}>
+                    <span>Adiantamento {report.percentual_adiantamento !== undefined ? report.percentual_adiantamento : 25}%:</span>
+                    <span style={{ color: 'white', fontWeight: '500' }}>{formatCurrency(report.advance)}</span>
+                  </div>
+                )}
                 {report.debtDiscountTotal > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', gap: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
                     <span>Desconto dívida:</span>
                     <span style={{ color: 'var(--danger)', fontWeight: '500' }}>- {formatCurrency(report.debtDiscountTotal)}</span>
                   </div>

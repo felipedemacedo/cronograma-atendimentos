@@ -53,6 +53,8 @@ function normalizeCaregiverPayload(body) {
     regime_clt: body.regime_clt ? 1 : 0,
     adicional_feriado: body.adicional_feriado !== undefined && body.adicional_feriado !== '' ? parseInt(body.adicional_feriado, 10) : null,
     percentual_feriado: body.percentual_feriado !== undefined && body.percentual_feriado !== '' ? parseFloat(body.percentual_feriado) : null,
+    recebe_adiantamento: body.recebe_adiantamento !== undefined ? (body.recebe_adiantamento ? 1 : 0) : 1,
+    percentual_adiantamento: body.percentual_adiantamento !== undefined && body.percentual_adiantamento !== '' ? parseFloat(body.percentual_adiantamento) : 25.0,
     configs: body.residencias_config || (body.residencia_ids || []).map((id) => ({ id, valor_transporte: 9 })),
   };
 }
@@ -65,6 +67,8 @@ function serializeCaregiverResponse(id, payload) {
     observacao: payload.observacao,
     dias_disponiveis: parseJsonArray(payload.dias_disponiveis, [0, 1, 2, 3, 4, 5, 6]),
     regime_clt: payload.regime_clt === 1,
+    recebe_adiantamento: payload.recebe_adiantamento === 1,
+    percentual_adiantamento: payload.percentual_adiantamento,
     residencia_ids: payload.configs.map((config) => config.id),
     residencias_config: payload.configs,
   };
@@ -329,8 +333,9 @@ app.post('/api/caregivers', asyncHandler(async (req, res) => {
       `
         INSERT INTO cuidadoras (
           id, nome, valor_hora, observacao, dias_disponiveis, adicional_noturno,
-          percentual_noturno, regime_clt, adicional_feriado, percentual_feriado
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          percentual_noturno, regime_clt, adicional_feriado, percentual_feriado,
+          recebe_adiantamento, percentual_adiantamento
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       `,
       [
         id,
@@ -343,6 +348,8 @@ app.post('/api/caregivers', asyncHandler(async (req, res) => {
         payload.regime_clt,
         payload.adicional_feriado,
         payload.percentual_feriado,
+        payload.recebe_adiantamento,
+        payload.percentual_adiantamento,
       ]
     );
 
@@ -369,8 +376,9 @@ app.put('/api/caregivers/:id', asyncHandler(async (req, res) => {
         UPDATE cuidadoras
         SET nome = $1, valor_hora = $2, observacao = $3, dias_disponiveis = $4,
             adicional_noturno = $5, percentual_noturno = $6, regime_clt = $7,
-            adicional_feriado = $8, percentual_feriado = $9
-        WHERE id = $10
+            adicional_feriado = $8, percentual_feriado = $9, recebe_adiantamento = $10,
+            percentual_adiantamento = $11
+        WHERE id = $12
       `,
       [
         payload.nome,
@@ -382,6 +390,8 @@ app.put('/api/caregivers/:id', asyncHandler(async (req, res) => {
         payload.regime_clt,
         payload.adicional_feriado,
         payload.percentual_feriado,
+        payload.recebe_adiantamento,
+        payload.percentual_adiantamento,
         req.params.id,
       ]
     );
@@ -525,6 +535,8 @@ app.get('/api/schedules', asyncHandler(async (_req, res) => {
         c.percentual_noturno AS cuidadora_percentual_noturno,
         c.adicional_feriado AS cuidadora_adicional_feriado,
         c.percentual_feriado AS cuidadora_percentual_feriado,
+        c.recebe_adiantamento AS cuidadora_recebe_adiantamento,
+        c.percentual_adiantamento AS cuidadora_percentual_adiantamento,
         COALESCE(cr.valor_transporte, 9) AS valor_transporte
       FROM agendamentos a
       JOIN residencias r ON a.residencia_id = r.id

@@ -29,6 +29,7 @@ function App() {
 
   const [caregiverMode, setCaregiverMode] = useState(null);
   const [activeTab, setActiveTab] = useState('calendar'); // 'residences', 'caregivers', 'schedules', 'calendar', 'finance', 'reports', 'debts', 'holidays', 'users'
+  const [caregiverModalTab, setCaregiverModalTab] = useState('geral'); // 'geral', 'financeiro', 'disponibilidade', 'vinculos'
 
   // Data states
   const [residences, setResidences] = useState([]);
@@ -255,6 +256,7 @@ function App() {
       recebe_adiantamento: c.recebe_adiantamento !== undefined ? c.recebe_adiantamento : true,
       percentual_adiantamento: c.percentual_adiantamento !== undefined ? c.percentual_adiantamento : 25
     } : { nome: '', residencia_ids: [], residencias_config: [], valor_hora: '', observacao: '', dias_disponiveis: [0,1,2,3,4,5,6], adicional_noturno: '', percentual_noturno: '', adicional_feriado: '', percentual_feriado: '', regime_clt: false, recebe_adiantamento: true, percentual_adiantamento: 25 });
+    setCaregiverModalTab('geral');
     setIsCaregiverModalOpen(true);
   };
   const handleCaregiverSubmit = async (e) => {
@@ -1047,7 +1049,10 @@ function App() {
                 </div>
               )}
               
-              <div className="flex-gap" style={{ justifyContent: 'flex-end', marginTop: '32px' }}><button type="button" className="btn-secondary" onClick={() => setIsResidenceModalOpen(false)}>Cancelar</button><button type="submit" className="btn-primary">Salvar</button></div>
+              <div className="flex-gap" style={{ justifyContent: 'flex-end', marginTop: '32px' }}>
+                <button type="button" className="btn-secondary" onClick={() => setIsResidenceModalOpen(false)}>Cancelar</button>
+                <button type="submit" className="btn-primary">Salvar</button>
+              </div>
             </form>
           </div>
         </div>
@@ -1056,146 +1061,192 @@ function App() {
       {/* MODAL: CAREGIVER EDIT/CREATE */}
       {isCaregiverModalOpen && (
         <div className="modal-overlay" onClick={() => setIsCaregiverModalOpen(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <h2 style={{ color: 'white', marginBottom: '24px' }}>{currentCaregiver ? 'Editar Prestador' : 'Novo Prestador de Serviço'}</h2>
-            <form onSubmit={handleCaregiverSubmit}>
-              <div className="form-group"><label htmlFor="caregiver-name">Nome*</label><input id="caregiver-name" name="caregiverName" autoFocus required className="form-control" value={caregiverFormData.nome} onChange={e => setCaregiverFormData({ ...caregiverFormData, nome: e.target.value })} /></div>
-              <div className="form-group" style={{ marginBottom: '24px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                  <input type="checkbox" name="caregiverRegimeClt" style={{ marginRight: '10px', width: '20px', height: '20px', accentColor: 'var(--warning)' }} checked={caregiverFormData.regime_clt} onChange={e => setCaregiverFormData({ ...caregiverFormData, regime_clt: e.target.checked })} />
-                  <div>
-                    <strong>Regime de Contratação Fixa (CLT / Mensalista)</strong>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0, marginTop: '4px', fontWeight: 'normal' }}>Marcador que exime o profissional dos cálculos na aba de Fechamento Financeiro, mas os mantém visualizáveis no calendário.</p>
-                  </div>
-                </label>
-              </div>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+            <h2 style={{ color: 'white', marginBottom: '16px', flexShrink: 0 }}>{currentCaregiver ? 'Editar Prestador' : 'Novo Prestador de Serviço'}</h2>
+            
+            {/* Modal Tabs Header */}
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: '20px', gap: '8px', overflowX: 'auto', paddingBottom: '4px', flexShrink: 0 }} className="custom-scroll">
+              <button type="button" onClick={() => setCaregiverModalTab('geral')} style={{ background: 'transparent', border: 'none', borderBottom: caregiverModalTab === 'geral' ? '2px solid var(--primary)' : '2px solid transparent', color: caregiverModalTab === 'geral' ? 'white' : 'var(--text-muted)', padding: '8px 12px', fontSize: '0.9rem', cursor: 'pointer', fontWeight: caregiverModalTab === 'geral' ? 'bold' : 'normal' }}>Geral</button>
+              <button type="button" onClick={() => setCaregiverModalTab('financeiro')} style={{ background: 'transparent', border: 'none', borderBottom: caregiverModalTab === 'financeiro' ? '2px solid var(--primary)' : '2px solid transparent', color: caregiverModalTab === 'financeiro' ? 'white' : 'var(--text-muted)', padding: '8px 12px', fontSize: '0.9rem', cursor: 'pointer', fontWeight: caregiverModalTab === 'financeiro' ? 'bold' : 'normal' }}>Financeiro</button>
+              <button type="button" onClick={() => setCaregiverModalTab('disponibilidade')} style={{ background: 'transparent', border: 'none', borderBottom: caregiverModalTab === 'disponibilidade' ? '2px solid var(--primary)' : '2px solid transparent', color: caregiverModalTab === 'disponibilidade' ? 'white' : 'var(--text-muted)', padding: '8px 12px', fontSize: '0.9rem', cursor: 'pointer', fontWeight: caregiverModalTab === 'disponibilidade' ? 'bold' : 'normal' }}>Disponibilidade</button>
+              <button type="button" onClick={() => setCaregiverModalTab('vinculos')} style={{ background: 'transparent', border: 'none', borderBottom: caregiverModalTab === 'vinculos' ? '2px solid var(--primary)' : '2px solid transparent', color: caregiverModalTab === 'vinculos' ? 'white' : 'var(--text-muted)', padding: '8px 12px', fontSize: '0.9rem', cursor: 'pointer', fontWeight: caregiverModalTab === 'vinculos' ? 'bold' : 'normal' }}>Atendimento</button>
+            </div>
 
-              {!caregiverFormData.regime_clt && (
-                <>
-                  <div className="form-group">
-                    <label htmlFor="caregiver-valor-hora">Valor Hora Específico (R$)</label>
-                    <input id="caregiver-valor-hora" name="caregiverValorHora" type="number" step="0.01" className="form-control" placeholder="Deixe em branco para usar o da Residência" value={caregiverFormData.valor_hora} onChange={e => setCaregiverFormData({ ...caregiverFormData, valor_hora: e.target.value })} />
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="caregiver-adicional-noturno">Adicional Noturno (Específico)</label>
-                    <select id="caregiver-adicional-noturno" name="caregiverAdicionalNoturno" className="form-control" value={caregiverFormData.adicional_noturno} onChange={e => setCaregiverFormData({ ...caregiverFormData, adicional_noturno: e.target.value })}>
-                      <option value="">Usar Regras da Residência atendida</option>
-                      <option value="1">Forçar Aplicação do Adicional</option>
-                      <option value="0">Nunca Aplicar Adicional</option>
-                    </select>
-                  </div>
-
-                  {caregiverFormData.adicional_noturno === '1' && (
+            <form onSubmit={handleCaregiverSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+              <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px', marginBottom: '20px' }} className="custom-scroll">
+                
+                {/* TAB: GERAL */}
+                {caregiverModalTab === 'geral' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <div className="form-group">
-                      <label htmlFor="caregiver-percentual-noturno">Acréscimo do Adicional Noturno Específico (%) *Mín 20%</label>
-                      <input id="caregiver-percentual-noturno" name="caregiverPercentualNoturno" type="number" step="0.1" min="20" required className="form-control" value={caregiverFormData.percentual_noturno} onChange={e => setCaregiverFormData({ ...caregiverFormData, percentual_noturno: e.target.value })} />
+                      <label htmlFor="caregiver-name">Nome*</label>
+                      <input id="caregiver-name" name="caregiverName" autoFocus required className="form-control" value={caregiverFormData.nome} onChange={e => setCaregiverFormData({ ...caregiverFormData, nome: e.target.value })} />
                     </div>
-                  )}
+                    
+                    <div className="form-group" style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                        <input type="checkbox" name="caregiverRegimeClt" style={{ marginRight: '10px', width: '20px', height: '20px', accentColor: 'var(--warning)' }} checked={caregiverFormData.regime_clt} onChange={e => setCaregiverFormData({ ...caregiverFormData, regime_clt: e.target.checked })} />
+                        <div>
+                          <strong>Regime de Contratação Fixa (CLT / Mensalista)</strong>
+                          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0, marginTop: '4px', fontWeight: 'normal' }}>Marcador que exime o profissional dos cálculos na aba de Fechamento Financeiro, mas os mantém visualizáveis no calendário.</p>
+                        </div>
+                      </label>
+                    </div>
 
-                  <div className="form-group" style={{ marginTop: '16px' }}>
-                    <label htmlFor="caregiver-adicional-feriado">Adicional em Feriados (Específico)</label>
-                    <select id="caregiver-adicional-feriado" name="caregiverAdicionalFeriado" className="form-control" value={caregiverFormData.adicional_feriado} onChange={e => setCaregiverFormData({ ...caregiverFormData, adicional_feriado: e.target.value })}>
-                      <option value="">Usar Regras da Residência atendida</option>
-                      <option value="1">Forçar Aplicação do Adicional Feriado</option>
-                      <option value="0">Nunca Aplicar Adicional de Feriado</option>
-                    </select>
-                  </div>
-
-                  {caregiverFormData.adicional_feriado === '1' && (
                     <div className="form-group">
-                      <label htmlFor="caregiver-percentual-feriado">Acréscimo do Adicional Feriado Especifico (%) *Mín 20%</label>
-                      <input id="caregiver-percentual-feriado" name="caregiverPercentualFeriado" type="number" step="0.1" min="20" required className="form-control" value={caregiverFormData.percentual_feriado} onChange={e => setCaregiverFormData({ ...caregiverFormData, percentual_feriado: e.target.value })} />
+                      <label htmlFor="caregiver-observacao">Observação (Opcional)</label>
+                      <textarea id="caregiver-observacao" name="caregiverObservacao" className="form-control" placeholder="Ex: Informações gerais, contatos ou restrições..." value={caregiverFormData.observacao} onChange={e => setCaregiverFormData({ ...caregiverFormData, observacao: e.target.value })} style={{ minHeight: '120px', resize: 'vertical' }} />
                     </div>
-                  )}
-                  <div className="form-group" style={{ marginBottom: '24px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                      <input type="checkbox" name="caregiverRecebeAdiantamento" style={{ marginRight: '10px', width: '20px', height: '20px', accentColor: 'var(--primary)' }} checked={caregiverFormData.recebe_adiantamento} onChange={e => setCaregiverFormData({ ...caregiverFormData, recebe_adiantamento: e.target.checked })} />
-                      <div>
-                        <strong>Permitir Adiantamento Salarial?</strong>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0, marginTop: '4px', fontWeight: 'normal' }}>Habilita a sugestão e o cálculo de adiantamentos mensais para este profissional.</p>
-                      </div>
-                    </label>
                   </div>
+                )}
 
-                  {caregiverFormData.recebe_adiantamento && (
-                    <div className="form-group">
-                      <label htmlFor="caregiver-percentual-adiantamento">Percentual de Adiantamento (%)</label>
-                      <input id="caregiver-percentual-adiantamento" name="caregiverPercentualAdiantamento" type="number" step="0.1" min="0" max="100" required className="form-control" value={caregiverFormData.percentual_adiantamento} onChange={e => setCaregiverFormData({ ...caregiverFormData, percentual_adiantamento: e.target.value })} />
-                    </div>
-                  )}
-                </>
-              )}
-              
-              <div className="form-group">
-                <div style={{ color: 'white', marginBottom: '8px' }}>Dias Disponíveis na Semana</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px' }}>
-                  {WEEKDAYS.map(w => {
-                    const isAvail = caregiverFormData.dias_disponiveis?.includes(w.id);
-                    return (
-                    <label key={w.id} style={{ color: 'white', display: 'flex', alignItems: 'center', fontSize: '0.85rem', background: isAvail ? 'rgba(16, 185, 129, 0.2)' : 'transparent', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border)' }}>
-                      <input id={`caregiver-day-${w.id}`} name={`caregiverDay_${w.id}`} type="checkbox" style={{ marginRight: '6px', accentColor: 'var(--success)' }} checked={isAvail} onChange={() => {
-                        const dias = caregiverFormData.dias_disponiveis || [];
-                        setCaregiverFormData({ ...caregiverFormData, dias_disponiveis: dias.includes(w.id) ? dias.filter(d => d !== w.id) : [...dias, w.id] });
-                      }} />
-                      {w.label}
-                    </label>
-                  )})}
-                </div>
-              </div>
+                {/* TAB: FINANCEIRO */}
+                {caregiverModalTab === 'financeiro' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {caregiverFormData.regime_clt ? (
+                      <p style={{ color: 'var(--text-muted)', fontStyle: 'italic', padding: '16px', textAlign: 'center' }}>
+                        Configurações financeiras indisponíveis para prestadores sob Regime CLT/Mensalista.
+                      </p>
+                    ) : (
+                      <>
+                        <div className="form-group">
+                          <label htmlFor="caregiver-valor-hora">Valor Hora Específico (R$)</label>
+                          <input id="caregiver-valor-hora" name="caregiverValorHora" type="number" step="0.01" className="form-control" placeholder="Deixe em branco para usar o da Residência" value={caregiverFormData.valor_hora} onChange={e => setCaregiverFormData({ ...caregiverFormData, valor_hora: e.target.value })} />
+                        </div>
 
-              <div className="form-group">
-                <label htmlFor="caregiver-observacao">Observação (Opcional)</label>
-                <textarea id="caregiver-observacao" name="caregiverObservacao" className="form-control" placeholder="Ex: Informações gerais, contatos ou restrições..." value={caregiverFormData.observacao} onChange={e => setCaregiverFormData({ ...caregiverFormData, observacao: e.target.value })} style={{ minHeight: '80px', resize: 'vertical' }} />
-              </div>
+                        <div className="form-group">
+                          <label htmlFor="caregiver-adicional-noturno">Adicional Noturno (Específico)</label>
+                          <select id="caregiver-adicional-noturno" name="caregiverAdicionalNoturno" className="form-control" value={caregiverFormData.adicional_noturno} onChange={e => setCaregiverFormData({ ...caregiverFormData, adicional_noturno: e.target.value })}>
+                            <option value="">Usar Regras da Residência atendida</option>
+                            <option value="1">Forçar Aplicação do Adicional</option>
+                            <option value="0">Nunca Aplicar Adicional</option>
+                          </select>
+                        </div>
 
-              <div className="form-group"><div style={{ color: 'white', marginBottom: '8px' }}>Atende nas Residências:</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {residences.map(res => {
-                    const isChecked = caregiverFormData.residencia_ids?.includes(res.id);
-                    const config = caregiverFormData.residencias_config?.find(c => c.id === res.id) || { id: res.id, valor_transporte: 9 };
-                    return (
-                      <div key={res.id} style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: 'rgba(255,255,255,0.02)', padding: '8px', borderRadius: '4px' }}>
-                        <label style={{ color: 'white', display: 'flex', alignItems: 'center' }}>
-                          <input id={`caregiver-residencia-${res.id}`} name={`caregiverResidencia_${res.id}`} type="checkbox" style={{ marginRight: '8px' }} checked={isChecked} onChange={() => {
-                            const ids = caregiverFormData.residencia_ids;
-                            const configs = caregiverFormData.residencias_config || [];
-                            if (isChecked) {
-                              setCaregiverFormData({ 
-                                ...caregiverFormData, 
-                                residencia_ids: ids.filter(i => i !== res.id),
-                                residencias_config: configs.filter(c => c.id !== res.id)
-                              });
-                            } else {
-                              setCaregiverFormData({ 
-                                ...caregiverFormData, 
-                                residencia_ids: [...ids, res.id],
-                                residencias_config: [...configs, { id: res.id, valor_transporte: 9 }]
-                              });
-                            }
-                          }} />{res.nome}
-                        </label>
-                        {isChecked && (
-                          <label htmlFor={`caregiver-transporte-${res.id}`} style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            Transporte (Ida e Volta) R$:
-                            <input id={`caregiver-transporte-${res.id}`} name={`caregiverTransporte_${res.id}`} type="number" step="0.01" value={config.valor_transporte} onChange={(e) => {
-                               const val = e.target.value;
-                               const cfgs = caregiverFormData.residencias_config || [];
-                               const exist = cfgs.find(c => c.id === res.id);
-                               if (exist) {
-                                 setCaregiverFormData({ ...caregiverFormData, residencias_config: cfgs.map(c => c.id === res.id ? { ...c, valor_transporte: val } : c) });
-                               } else {
-                                 setCaregiverFormData({ ...caregiverFormData, residencias_config: [...cfgs, { id: res.id, valor_transporte: val }] });
-                               }
-                            }} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'white', padding: '2px 4px', borderRadius: '4px', width: '70px' }} />
-                          </label>
+                        {caregiverFormData.adicional_noturno === '1' && (
+                          <div className="form-group">
+                            <label htmlFor="caregiver-percentual-noturno">Acréscimo do Adicional Noturno Específico (%) *Mín 20%</label>
+                            <input id="caregiver-percentual-noturno" name="caregiverPercentualNoturno" type="number" step="0.1" min="20" required className="form-control" value={caregiverFormData.percentual_noturno} onChange={e => setCaregiverFormData({ ...caregiverFormData, percentual_noturno: e.target.value })} />
+                          </div>
                         )}
-                      </div>
-                    );
-                  })}
-                </div>
+
+                        <div className="form-group">
+                          <label htmlFor="caregiver-adicional-feriado">Adicional em Feriados (Específico)</label>
+                          <select id="caregiver-adicional-feriado" name="caregiverAdicionalFeriado" className="form-control" value={caregiverFormData.adicional_feriado} onChange={e => setCaregiverFormData({ ...caregiverFormData, adicional_feriado: e.target.value })}>
+                            <option value="">Usar Regras da Residência atendida</option>
+                            <option value="1">Forçar Aplicação do Adicional Feriado</option>
+                            <option value="0">Nunca Aplicar Adicional de Feriado</option>
+                          </select>
+                        </div>
+
+                        {caregiverFormData.adicional_feriado === '1' && (
+                          <div className="form-group">
+                            <label htmlFor="caregiver-percentual-feriado">Acréscimo do Adicional Feriado Especifico (%) *Mín 20%</label>
+                            <input id="caregiver-percentual-feriado" name="caregiverPercentualFeriado" type="number" step="0.1" min="20" required className="form-control" value={caregiverFormData.percentual_feriado} onChange={e => setCaregiverFormData({ ...caregiverFormData, percentual_feriado: e.target.value })} />
+                          </div>
+                        )}
+
+                        <div className="form-group" style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                            <input type="checkbox" name="caregiverRecebeAdiantamento" style={{ marginRight: '10px', width: '20px', height: '20px', accentColor: 'var(--primary)' }} checked={caregiverFormData.recebe_adiantamento} onChange={e => setCaregiverFormData({ ...caregiverFormData, recebe_adiantamento: e.target.checked })} />
+                            <div>
+                              <strong>Permitir Adiantamento Salarial?</strong>
+                              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0, marginTop: '4px', fontWeight: 'normal' }}>Habilita a sugestão e o cálculo de adiantamentos mensais para este profissional.</p>
+                            </div>
+                          </label>
+                        </div>
+
+                        {caregiverFormData.recebe_adiantamento && (
+                          <div className="form-group">
+                            <label htmlFor="caregiver-percentual-adiantamento">Percentual de Adiantamento (%)</label>
+                            <input id="caregiver-percentual-adiantamento" name="caregiverPercentualAdiantamento" type="number" step="0.1" min="0" max="100" required className="form-control" value={caregiverFormData.percentual_adiantamento} onChange={e => setCaregiverFormData({ ...caregiverFormData, percentual_adiantamento: e.target.value })} />
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* TAB: DISPONIBILIDADE */}
+                {caregiverModalTab === 'disponibilidade' && (
+                  <div className="form-group">
+                    <div style={{ color: 'white', marginBottom: '12px', fontSize: '0.95rem' }}>Dias Disponíveis na Semana</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px' }}>
+                      {WEEKDAYS.map(w => {
+                        const isAvail = caregiverFormData.dias_disponiveis?.includes(w.id);
+                        return (
+                          <label key={w.id} style={{ color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: '6px', background: isAvail ? 'rgba(16, 185, 129, 0.08)' : 'rgba(255,255,255,0.01)', border: isAvail ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid var(--border)', cursor: 'pointer' }}>
+                            <span style={{ fontWeight: isAvail ? 'bold' : 'normal' }}>{w.label}</span>
+                            <input id={`caregiver-day-${w.id}`} name={`caregiverDay_${w.id}`} type="checkbox" style={{ width: '18px', height: '18px', accentColor: 'var(--success)' }} checked={isAvail} onChange={() => {
+                              const dias = caregiverFormData.dias_disponiveis || [];
+                              setCaregiverFormData({ ...caregiverFormData, dias_disponiveis: dias.includes(w.id) ? dias.filter(d => d !== w.id) : [...dias, w.id] });
+                            }} />
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB: VINCULOS */}
+                {caregiverModalTab === 'vinculos' && (
+                  <div className="form-group">
+                    <div style={{ color: 'white', marginBottom: '12px', fontSize: '0.95rem' }}>Atende nas Residências:</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {residences.map(res => {
+                        const isChecked = caregiverFormData.residencia_ids?.includes(res.id);
+                        const config = caregiverFormData.residencias_config?.find(c => c.id === res.id) || { id: res.id, valor_transporte: 9 };
+                        return (
+                          <div key={res.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '6px', border: isChecked ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid var(--border)' }}>
+                            <label style={{ color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+                              <span style={{ fontWeight: isChecked ? 'bold' : 'normal' }}>{res.nome}</span>
+                              <input id={`caregiver-residencia-${res.id}`} name={`caregiverResidencia_${res.id}`} type="checkbox" style={{ width: '18px', height: '18px' }} checked={isChecked} onChange={() => {
+                                const ids = caregiverFormData.residencia_ids;
+                                const configs = caregiverFormData.residencias_config || [];
+                                if (isChecked) {
+                                  setCaregiverFormData({ 
+                                    ...caregiverFormData, 
+                                    residencia_ids: ids.filter(i => i !== res.id),
+                                    residencias_config: configs.filter(c => c.id !== res.id)
+                                  });
+                                } else {
+                                  setCaregiverFormData({ 
+                                    ...caregiverFormData, 
+                                    residencia_ids: [...ids, res.id],
+                                    residencias_config: [...configs, { id: res.id, valor_transporte: 9 }]
+                                  });
+                                }
+                              }} />
+                            </label>
+                            {isChecked && (
+                              <div style={{ borderTop: '1px dashed var(--border)', paddingTop: '8px', marginTop: '4px' }}>
+                                <label htmlFor={`caregiver-transporte-${res.id}`} style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                                  <span>Valor Transporte (Ida e Volta) R$:</span>
+                                  <input id={`caregiver-transporte-${res.id}`} name={`caregiverTransporte_${res.id}`} type="number" step="0.01" value={config.valor_transporte} onChange={(e) => {
+                                     const val = e.target.value;
+                                     const cfgs = caregiverFormData.residencias_config || [];
+                                     const exist = cfgs.find(c => c.id === res.id);
+                                     if (exist) {
+                                       setCaregiverFormData({ ...caregiverFormData, residencias_config: cfgs.map(c => c.id === res.id ? { ...c, valor_transporte: val } : c) });
+                                     } else {
+                                       setCaregiverFormData({ ...caregiverFormData, residencias_config: [...cfgs, { id: res.id, valor_transporte: val }] });
+                                     }
+                                  }} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'white', padding: '4px 8px', borderRadius: '4px', width: '90px', textAlign: 'right' }} />
+                                </label>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
               </div>
-              <div className="flex-gap" style={{ justifyContent: 'flex-end', marginTop: '32px' }}><button type="button" className="btn-secondary" onClick={() => setIsCaregiverModalOpen(false)}>Cancelar</button><button type="submit" className="btn-primary">Salvar</button></div>
+              <div className="flex-gap" style={{ justifyContent: 'flex-end', marginTop: '12px', borderTop: '1px solid var(--border)', paddingTop: '16px', flexShrink: 0 }}>
+                <button type="button" className="btn-secondary" onClick={() => setIsCaregiverModalOpen(false)}>Cancelar</button>
+                <button type="submit" className="btn-primary">Salvar</button>
+              </div>
             </form>
           </div>
         </div>
@@ -1314,7 +1365,7 @@ function App() {
       )}
       {/* System Version */}
       <footer style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', padding: '24px 0', borderTop: '1px solid var(--border)', marginTop: '32px' }}>
-        Sistema de Gestão v1.0.4
+        Sistema de Gestão v1.0.5
       </footer>
     </div>
   );

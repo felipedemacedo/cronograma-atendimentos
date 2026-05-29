@@ -331,6 +331,17 @@ function App() {
       for (let d = 1; d <= daysInMonth; d += 1) targetDays.push(d);
     } else if (type === 'especificos') {
       targetDays = specificDays.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n >= 1 && n <= daysInMonth);
+    } else if (type === 'uteis') {
+      // Todos os dias úteis: exclui sábados (6), domingos (0) e feriados
+      const holidaySet = new Set((holidays || []).map(h => h.data));
+      for (let d = 1; d <= daysInMonth; d += 1) {
+        const date = new Date(y, m - 1, d);
+        const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const weekday = date.getDay();
+        if (weekday === 0 || weekday === 6) continue; // domingo ou sábado
+        if (holidaySet.has(dateStr)) continue; // é feriado
+        targetDays.push(d);
+      }
     }
 
     const caregiver = caregivers.find(c => c.id === cuidadora_id);
@@ -1199,6 +1210,7 @@ function App() {
                   <option value="impares">Todos os dias Ímpares</option>
                   <option value="pares">Todos os dias Pares</option>
                   <option value="sem_concorrencia">Todas as datas sem concorrência</option>
+                  <option value="uteis">Todos os dias úteis</option>
                   <option value="especificos">Dias Específicos</option>
                 </select>
               </div>

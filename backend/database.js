@@ -113,6 +113,13 @@ const schemaStatements = [
       cuidadora_ids TEXT DEFAULT '[]'
     )
   `,
+  `
+    CREATE TABLE IF NOT EXISTS links_publicos (
+      token TEXT PRIMARY KEY,
+      cuidadora_ids TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `,
 ];
 
 function createPool() {

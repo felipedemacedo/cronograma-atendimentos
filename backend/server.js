@@ -780,6 +780,41 @@ app.delete('/api/users/:id', asyncHandler(async (req, res) => {
   res.json({ message: 'Apagado' });
 }));
 
+app.post('/api/public-links', asyncHandler(async (req, res) => {
+  const { caregiver_ids } = req.body;
+  if (!Array.isArray(caregiver_ids) || caregiver_ids.length === 0) {
+    return res.status(400).json({ error: 'Lista de cuidadores vazia ou invalida' });
+  }
+
+  // Generate a short 12-char unique hex token
+  const token = crypto.randomBytes(6).toString('hex');
+  const caregiverIdsJson = JSON.stringify(caregiver_ids);
+
+  await db.query(
+    `
+      INSERT INTO links_publicos (token, cuidadora_ids)
+      VALUES ($1, $2)
+    `,
+    [token, caregiverIdsJson]
+  );
+
+  res.status(201).json({ token, caregiver_ids });
+}));
+
+app.get('/api/public-links/:token', asyncHandler(async (req, res) => {
+  const result = await db.query(
+    'SELECT cuidadora_ids FROM links_publicos WHERE token = $1 LIMIT 1',
+    [req.params.token]
+  );
+
+  const row = result.rows[0];
+  if (!row) {
+    return res.status(404).json({ error: 'Token invalido ou expirado' });
+  }
+
+  res.json({ caregiver_ids: parseJsonArray(row.cuidadora_ids) });
+}));
+
 if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
   db.ready
     .then(() => {

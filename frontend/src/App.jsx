@@ -171,11 +171,30 @@ function App() {
   }, [uiNotice]);
 
   useEffect(() => {
+    const resolvePublicToken = async (token) => {
+      try {
+        const response = await api.get(`/public-links/${token}`);
+        const ids = response.data.caregiver_ids || [];
+        const foundList = caregivers.filter(c => ids.includes(c.id));
+        if (foundList.length > 0) {
+          setCaregiverModeList(foundList);
+          setActiveTab('calendar');
+        }
+      } catch (err) {
+        console.error('Erro ao resolver token publico:', err);
+        showNotice('Link público inválido ou expirado.', 'error');
+      }
+    };
+
     const urlParams = new URLSearchParams(window.location.search);
+    const publicToken = urlParams.get('public_token');
     const careId = urlParams.get('caregiver_id');
     const careIdsParam = urlParams.get('caregiver_ids');
+
     if (caregivers.length > 0) {
-      if (careIdsParam) {
+      if (publicToken) {
+        resolvePublicToken(publicToken);
+      } else if (careIdsParam) {
         const ids = careIdsParam.split(',');
         const foundList = caregivers.filter(c => ids.includes(c.id));
         if (foundList.length > 0) {
@@ -190,7 +209,7 @@ function App() {
         }
       }
     }
-  }, [caregivers]);
+  }, [caregivers, showNotice]);
 
   useEffect(() => {
     if (residences.length === 0) return;
@@ -593,7 +612,7 @@ function App() {
     };
   }, [activeTab, displayedSchedules.length, filteredSchedulesList.length, loadMore]);
 
-  if (!currentUser && caregiverModeList.length === 0 && !new URLSearchParams(window.location.search).get('caregiver_id') && !new URLSearchParams(window.location.search).get('caregiver_ids')) {
+  if (!currentUser && caregiverModeList.length === 0 && !new URLSearchParams(window.location.search).get('caregiver_id') && !new URLSearchParams(window.location.search).get('caregiver_ids') && !new URLSearchParams(window.location.search).get('public_token')) {
     return <LoginView onLogin={handleLogin} />;
   }
 
@@ -978,10 +997,17 @@ function App() {
                 <button 
                   type="button" 
                   className="btn-primary" 
-                  onClick={() => {
-                    const link = `${window.location.origin}/?caregiver_ids=${selectedCaregiversForLink.join(',')}`;
-                    navigator.clipboard.writeText(link);
-                    showNotice(`Link público copiado: ${link}`, 'success');
+                  onClick={async () => {
+                    try {
+                      const response = await api.post('/public-links', { caregiver_ids: selectedCaregiversForLink });
+                      const token = response.data.token;
+                      const link = `${window.location.origin}/?public_token=${token}`;
+                      navigator.clipboard.writeText(link);
+                      showNotice(`Link público seguro copiado: ${link}`, 'success');
+                    } catch (err) {
+                      console.error('Erro ao gerar token publico:', err);
+                      showNotice('Falha ao gerar link público seguro.', 'error');
+                    }
                   }}
                   style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px' }}
                 >
@@ -1055,11 +1081,18 @@ function App() {
                   )}
                 </div>
                 <div className="flex-gap" style={{ justifyContent: 'flex-end' }}>
-                  <button className="btn-icon" onClick={() => {
-                    const link = `${window.location.origin}/?caregiver_id=${c.id}`;
-                    navigator.clipboard.writeText(link);
-                    showNotice(`Link copiado: ${link}`, 'success');
-                  }} title="Copiar link de acesso para o Prestador de Serviço"><MonitorPlay size={18} color="var(--success)" /></button>
+                  <button className="btn-icon" onClick={async () => {
+                    try {
+                      const response = await api.post('/public-links', { caregiver_ids: [c.id] });
+                      const token = response.data.token;
+                      const link = `${window.location.origin}/?public_token=${token}`;
+                      navigator.clipboard.writeText(link);
+                      showNotice(`Link de acesso seguro copiado: ${link}`, 'success');
+                    } catch (err) {
+                      console.error('Erro ao gerar token para prestador:', err);
+                      showNotice('Falha ao gerar link seguro.', 'error');
+                    }
+                  }} title="Copiar link de acesso seguro para o Prestador de Serviço"><MonitorPlay size={18} color="var(--success)" /></button>
                   <button className="btn-icon" onClick={() => handleOpenCaregiverModal(c)}><Edit2 size={18} /></button>
                   <button className="btn-icon" onClick={() => handleCaregiverDelete(c.id)}><Trash2 size={18} color="var(--danger)" /></button>
                 </div>
@@ -1437,7 +1470,7 @@ function App() {
       )}
       {/* System Version */}
       <footer style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', padding: '24px 0', borderTop: '1px solid var(--border)', marginTop: '32px' }}>
-        Sistema de Gestão v1.0.6
+        Sistema de Gestão v1.0.7
       </footer>
     </div>
   );

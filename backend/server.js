@@ -8,6 +8,21 @@ const PORT = Number(process.env.PORT) || 3000;
 
 const uuidv4 = () => crypto.randomUUID();
 
+// Simple in-memory IP Rate Limiter to prevent public_token brute forcing
+const failedTokenAttempts = new Map(); // key: ip, value: { count, banUntil }
+
+const rateLimiter = (req, res, next) => {
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const now = Date.now();
+
+  const record = failedTokenAttempts.get(ip);
+  if (record && record.banUntil > now) {
+    return res.status(429).json({ error: 'Muitas tentativas incorretas. Tente novamente mais tarde.' });
+  }
+
+  next();
+};
+
 app.use(cors());
 app.use(express.json());
 
@@ -801,7 +816,10 @@ app.post('/api/public-links', asyncHandler(async (req, res) => {
   res.status(201).json({ token, caregiver_ids });
 }));
 
-app.get('/api/public-links/:token', asyncHandler(async (req, res) => {
+app.get('/api/public-links/:token', rateLimiter, asyncHandler(async (req, res) => {
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const now = Date.now();
+
   const result = await db.query(
     'SELECT cuidadora_ids FROM links_publicos WHERE token = $1 LIMIT 1',
     [req.params.token]
@@ -809,8 +827,19 @@ app.get('/api/public-links/:token', asyncHandler(async (req, res) => {
 
   const row = result.rows[0];
   if (!row) {
+    // Record failed attempt
+    const record = failedTokenAttempts.get(ip) || { count: 0, banUntil: 0 };
+    record.count += 1;
+    if (record.count >= 5) {
+      record.banUntil = now + 15 * 60 * 1000; // Ban for 15 minutes
+    }
+    failedTokenAttempts.set(ip, record);
+
     return res.status(404).json({ error: 'Token invalido ou expirado' });
   }
+
+  // Clear failed attempt on successful resolution
+  failedTokenAttempts.delete(ip);
 
   res.json({ caregiver_ids: parseJsonArray(row.cuidadora_ids) });
 }));

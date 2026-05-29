@@ -1470,7 +1470,7 @@ function App() {
       )}
       {/* System Version */}
       <footer style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', padding: '24px 0', borderTop: '1px solid var(--border)', marginTop: '32px' }}>
-        Sistema de Gestão v1.0.7
+        Sistema de Gestão v1.0.8
       </footer>
     </div>
   );
